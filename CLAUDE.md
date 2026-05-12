@@ -1,0 +1,137 @@
+# nextjs-clean-architecture
+
+Convention guide for Next.js 15+ App Router projects.
+**Saat ini dalam pengembangan v2** — lihat `.planning/ROADMAP.md` untuk status lengkap.
+
+---
+
+## Status Proyek
+
+| Area | File Konteks | Status |
+|------|-------------|--------|
+| Convention v2 Spec | `.planning/01-convention-spec.md` | 🔄 In progress |
+| Astro Starlight Setup | `.planning/02-astro-starlight.md` | 🔲 Belum dimulai |
+| Konten Dokumentasi | `.planning/03-content.md` | 🔲 Belum dimulai |
+| llms.txt | `.planning/04-llms-txt.md` | 🔲 Belum dimulai |
+| AI Workflow | `.planning/05-ai-workflow.md` | 🔲 Belum dimulai |
+| Claude Skills | `.planning/06-claude-skills.md` | 🔲 Belum dimulai |
+| Deploy | `.planning/07-deploy.md` | 🔲 Belum dimulai |
+
+---
+
+## Struktur Repo
+
+```
+.planning/          ← context files per area (baca ini sebelum mulai kerja)
+docs/               ← dokumentasi v1 (vanilla HTML + Markdown, akan dimigrasikan)
+example/
+└── login/          ← contoh implementasi fitur login sesuai convention
+```
+
+---
+
+## Stack Target (v2)
+
+```
+Next.js 15+  (App Router)
+├── UI            shadcn/ui
+├── State         Zustand (transient) | URL Search Params (persistent)
+├── Server State  TanStack Query
+├── Forms         TanStack Form + Zod
+├── i18n          next-intl
+└── Language      TypeScript strict
+```
+
+---
+
+## Convention v2 — Quick Reference
+
+Detail lengkap ada di `.planning/01-convention-spec.md`.
+
+### Folder per Feature
+
+```
+app/[feature]/
+├── $action/      ACT_ — Next.js Server Actions
+├── $element/     SE_ (server) / CE_ (client) — React components
+├── $function/    SFN_ (server) / CFN_ (client) — helper functions
+├── $store/       useXxxStore — Zustand stores scoped ke feature ini
+└── page.tsx      hanya boleh: return <SE_FeatureLayout />
+```
+
+> i18n: string per feature disimpan di `messages/[locale].json` dengan namespace feature,
+> bukan di `$lang/`. Gunakan `useTranslations("Feature")` di CE_ dan `getTranslations` di SE_.
+
+### File Naming
+
+| Tipe | Pattern | Contoh |
+|------|---------|--------|
+| Server Action | `action.[sub].ts` | `action.submit.ts` |
+| Server Element | `server.[module].tsx` | `server.layout.tsx` |
+| Client Element | `client.[module].tsx` | `client.form.tsx` |
+| Server Function | `sfn.[module].ts` | `sfn.session.ts` |
+| Client Function | `cfn.[module].ts` | `cfn.validate.ts` |
+| Zustand Store | `[module].store.ts` | `ui.store.ts` |
+| Zod Schema | `[module].schema.ts` | `login.schema.ts` |
+| API | `[resource].ts` + `[resource].type.ts` | `login.ts` |
+| Registry | `[domain].register.ts` | `routes.register.ts` |
+| i18n messages | `[locale].json` | `id.json`, `en.json` — di `messages/` root |
+| Lib adapter | `[library].ts` + `index.ts` | `ioredis.ts` di `lib/cache/` |
+
+### Symbol Naming
+
+| Simbol | Prefix | Simbol | Prefix |
+|--------|--------|--------|--------|
+| Server Action | `ACT_` | Client Element | `CE_` |
+| Server Element | `SE_` | Client Function | `CFN_` |
+| Server Function | `SFN_` | Zustand hook | `useXxxStore` |
+| API fetch | `APIS_` | Zod schema | `ZS_` |
+| Interface | `I_` | Request interface | `IRq_` |
+| Response interface | `IRs_` | Type alias | `T_` |
+| Enum | `E_` | Query key | `QK_` |
+| Route constant | `ROUTE_` | i18n (CE_) | `useTranslations` |
+
+### Aturan Penting
+
+- `page.tsx` tidak boleh berisi logika — hanya `return <SE_FeatureLayout />`
+- Jangan modifikasi komponen shadcn/ui langsung — buat wrapper di `CE_` atau `lib/`
+- **Dilarang:** GlobalEmitter — gunakan Zustand atau URL Search Params
+- Search/filter/pagination → URL Search Params
+- Modal/selection/toggle → Zustand store
+- Zod validation wajib ada di Server Action sebelum memanggil `APIS_`
+
+---
+
+## Cara Kerja Saat Ini (v1 — legacy)
+
+Docs v1 masih ada di `docs/` dan berjalan sebagai static site:
+- Buka `docs/index.html` di browser untuk preview
+- Tambah halaman: buat `.md` di `docs/pages/`, daftarkan di `docs/menu.json`
+
+---
+
+## Git Commit Style
+
+Format: **Conventional Commits** — `<type>(<scope>): <description>`
+
+```
+feat(login): add OAuth support
+fix(session): correct cookie expiry handling
+docs: update naming convention table
+refactor(user-list): extract filter logic to CFN_
+chore: update dependencies
+```
+
+| Type | Kapan digunakan |
+|------|----------------|
+| `feat` | Fitur baru |
+| `fix` | Bug fix |
+| `docs` | Perubahan dokumentasi |
+| `refactor` | Refactor tanpa perubahan fungsional |
+| `chore` | Dependency, config, tooling |
+| `test` | Tambah atau perbaiki test |
+| `perf` | Optimasi performa |
+| `style` | Formatting, tidak ada perubahan logika |
+
+- `scope` opsional — gunakan nama feature folder (`login`, `user-list`, dll.)
+- Deskripsi: huruf kecil, tanpa titik di akhir, dalam bahasa Inggris
