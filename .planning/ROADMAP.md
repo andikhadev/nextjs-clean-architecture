@@ -27,7 +27,7 @@ Next.js 15+  (App Router)
 | # | Area | Context File | Status |
 |---|------|-------------|--------|
 | 1 | Convention v2 Spec | [01-convention-spec.md](01-convention-spec.md) | ✅ Selesai |
-| 2 | Astro Starlight — Setup | [02-astro-starlight.md](02-astro-starlight.md) | 🔲 Belum dimulai |
+| 2 | Astro Starlight — Setup | [02-astro-starlight.md](02-astro-starlight.md) | ✅ Selesai |
 | 3 | Astro Starlight — Konten | [03-content.md](03-content.md) | 🔲 Belum dimulai |
 | 4 | llms.txt | [04-llms-txt.md](04-llms-txt.md) | 🔲 Belum dimulai |
 | 5 | AI Workflow | [05-ai-workflow.md](05-ai-workflow.md) | 🔲 Belum dimulai |
