@@ -41,7 +41,7 @@ Manfaat untuk convention ini:
 # Next.js Clean Architecture Convention v2
 
 > Convention guide for structuring Next.js 15+ App Router projects.
-> Stack: Next.js 15, TypeScript, shadcn/ui, Zustand, TanStack Query, TanStack Form, Zod, next-intl.
+> Stack: Next.js 15, TypeScript, shadcn/ui, Zustand, nuqs, TanStack Query, TanStack Form, Zod, next-intl.
 
 ## Folder Structure
 
@@ -102,8 +102,8 @@ Manfaat untuk convention ini:
 
 - Pattern A — Server fetch: page → SE_ → APIS_ → CE_ via props
 - Pattern B — Client fetch: CE_ → useQuery(QK_, APIS_)
-- Pattern C — Form submit: CE_ form → useActionState(ACT_) → Zod validate → APIS_
-- Pattern D — Cross-component (persistent): useSearchParams + router.replace
+- Pattern C — Form submit: CE_ form (useForm/TanStack Form) → ACT_ (plain object) → Zod validate → APIS_
+- Pattern D — Cross-component (persistent): useQueryState (nuqs) → page re-render → SE_ baca
 - Pattern E — Cross-component (transient): useXxxStore from $store/ or store/
 - Pattern F — shadcn/ui extension: wrap in CE_ or lib/, never modify components/ui/
 - Pattern G — Library adapter: lib/[domain]/index.ts (interface) + lib/[domain]/[library].ts (impl)

@@ -9,7 +9,7 @@ Convention guide for Next.js 15+ App Router projects.
 
 | Area | File Konteks | Status |
 |------|-------------|--------|
-| Convention v2 Spec | `.planning/01-convention-spec.md` | 🔄 In progress |
+| Convention v2 Spec | `.planning/01-convention-spec.md` | ✅ Selesai |
 | Astro Starlight Setup | `.planning/02-astro-starlight.md` | 🔲 Belum dimulai |
 | Konten Dokumentasi | `.planning/03-content.md` | 🔲 Belum dimulai |
 | llms.txt | `.planning/04-llms-txt.md` | 🔲 Belum dimulai |
@@ -23,7 +23,7 @@ Convention guide for Next.js 15+ App Router projects.
 
 ```
 .planning/          ← context files per area (baca ini sebelum mulai kerja)
-docs/               ← dokumentasi v1 (vanilla HTML + Markdown, akan dimigrasikan)
+legacy/             ← dokumentasi v1 (vanilla HTML + Markdown, akan dimigrasikan ke Astro)
 example/
 └── login/          ← contoh implementasi fitur login sesuai convention
 ```
@@ -35,7 +35,7 @@ example/
 ```
 Next.js 15+  (App Router)
 ├── UI            shadcn/ui
-├── State         Zustand (transient) | URL Search Params (persistent)
+├── State         Zustand (transient) | URL Search Params via nuqs (persistent)
 ├── Server State  TanStack Query
 ├── Forms         TanStack Form + Zod
 ├── i18n          next-intl
@@ -104,9 +104,9 @@ app/[feature]/
 
 ## Cara Kerja Saat Ini (v1 — legacy)
 
-Docs v1 masih ada di `docs/` dan berjalan sebagai static site:
-- Buka `docs/index.html` di browser untuk preview
-- Tambah halaman: buat `.md` di `docs/pages/`, daftarkan di `docs/menu.json`
+Docs v1 ada di `legacy/` sebagai referensi konten yang akan dimigrasikan ke Astro Starlight:
+- Buka `legacy/index.html` di browser untuk preview
+- Konten ada di `legacy/pages/`, navigasi di `legacy/menu.json`
 
 ---
 
