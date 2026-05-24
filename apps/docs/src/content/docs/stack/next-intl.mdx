@@ -1,6 +1,223 @@
 ---
 title: next-intl
-description: Coming soon
+description: Panduan setup dan penggunaan next-intl dalam konvensi Next.js Clean Architecture — routing berbasis locale, namespace per feature, dan penggunaan di CE_ dan SE_.
 ---
 
-Coming soon
+## Tujuan dalam Konvensi Ini
+
+next-intl dipilih sebagai solusi i18n karena integrasinya yang dalam dengan Next.js App Router — mendukung Server Components, static rendering, dan locale-based routing tanpa konfigurasi yang rumit. Dalam konvensi ini, semua teks yang tampil ke user **wajib** melalui next-intl — tidak ada string hardcoded di komponen. Setiap feature memiliki namespace sendiri di `messages/[locale].json`, dan string diakses via `useTranslations` di `CE_` atau `getTranslations` di `SE_` dan `ACT_`.
+
+---
+
+## Setup
+
+```bash
+npm install next-intl
+```
+
+### 1. Next.js Config
+
+```ts
+// next.config.ts
+import type { NextConfig } from "next"
+import createNextIntlPlugin from "next-intl/plugin"
+
+const nextConfig: NextConfig = {
+  // konfigurasi lainnya
+}
+
+const withNextIntl = createNextIntlPlugin()
+export default withNextIntl(nextConfig)
+```
+
+### 2. Routing Config
+
+```ts
+// src/i18n/routing.ts
+import { defineRouting } from "next-intl/routing"
+
+export const routing = defineRouting({
+  locales: ["id", "en"],
+  defaultLocale: "id",
+})
+```
+
+### 3. Request Config
+
+```ts
+// src/i18n/request.ts
+import { getRequestConfig } from "next-intl/server"
+import { hasLocale } from "next-intl"
+import { routing } from "./routing"
+
+export default getRequestConfig(async ({ requestLocale }) => {
+  const requested = await requestLocale
+  const locale = hasLocale(routing.locales, requested)
+    ? requested
+    : routing.defaultLocale
+
+  return {
+    locale,
+    messages: (await import(`../../messages/${locale}.json`)).default,
+  }
+})
+```
+
+### 4. Middleware
+
+```ts
+// src/middleware.ts
+import createMiddleware from "next-intl/middleware"
+import { routing } from "./i18n/routing"
+
+export default createMiddleware(routing)
+
+export const config = {
+  matcher: "/((?!api|_next|_vercel|.*\\..*).*)",
+}
+```
+
+### 5. Navigation Helpers
+
+```ts
+// src/i18n/navigation.ts
+import { createNavigation } from "next-intl/navigation"
+import { routing } from "./routing"
+
+export const { Link, redirect, usePathname, useRouter } =
+  createNavigation(routing)
+```
+
+Selalu import `Link` dari `@/i18n/navigation`, bukan dari `next/link` — agar link secara otomatis mengikuti locale aktif.
+
+---
+
+## Pola Penggunaan
+
+### Struktur Namespace di `messages/`
+
+Satu namespace per feature, nama namespace sama dengan nama feature folder:
+
+```json
+// messages/id.json
+{
+  "Login": {
+    "title": "Masuk",
+    "email": "Email",
+    "password": "Kata Sandi",
+    "submit": "Masuk",
+    "error": {
+      "invalidCredentials": "Email atau kata sandi salah",
+      "serverError": "Terjadi kesalahan, coba lagi"
+    }
+  },
+  "UserList": {
+    "title": "Daftar Pengguna",
+    "search": "Cari pengguna...",
+    "empty": "Tidak ada pengguna ditemukan"
+  }
+}
+```
+
+```json
+// messages/en.json
+{
+  "Login": {
+    "title": "Sign In",
+    "email": "Email",
+    "password": "Password",
+    "submit": "Sign In",
+    "error": {
+      "invalidCredentials": "Invalid email or password",
+      "serverError": "Something went wrong, please try again"
+    }
+  },
+  "UserList": {
+    "title": "User List",
+    "search": "Search users...",
+    "empty": "No users found"
+  }
+}
+```
+
+### `useTranslations` di CE_ (Client Component)
+
+```tsx
+// app/login/$element/client.form.tsx
+"use client"
+import { useTranslations } from "next-intl"
+
+export function CE_LoginForm() {
+  const t = useTranslations("Login")
+
+  return (
+    <form>
+      <label>{t("email")}</label>
+      <input type="email" placeholder={t("email")} />
+
+      <label>{t("password")}</label>
+      <input type="password" />
+
+      <button type="submit">{t("submit")}</button>
+    </form>
+  )
+}
+```
+
+### `getTranslations` di SE_ (Server Component)
+
+```tsx
+// app/login/$element/server.layout.tsx
+import { getTranslations } from "next-intl/server"
+
+export async function SE_LoginLayout() {
+  const t = await getTranslations("Login")
+
+  return (
+    <div>
+      <h1>{t("title")}</h1>
+      <CE_LoginForm />
+    </div>
+  )
+}
+```
+
+### `getTranslations` di ACT_ (Server Action)
+
+```ts
+// app/login/$action/action.submit.ts
+"use server"
+import { getTranslations } from "next-intl/server"
+import { ZS_LoginForm } from "../login.schema"
+
+export async function ACT_SubmitLogin(data: unknown) {
+  const t = await getTranslations("Login")
+  const parsed = ZS_LoginForm.safeParse(data)
+
+  if (!parsed.success) {
+    return { error: t("error.invalidCredentials") }
+  }
+
+  // lanjut ke APIS_Login...
+}
+```
+
+---
+
+## Aturan Konvensi
+
+- Satu namespace per feature — nama namespace sama dengan nama feature folder (PascalCase)
+- **Dilarang** string hardcoded di komponen — semua teks tampil ke user harus dari `t()`
+- `useTranslations` dipakai di `CE_` — untuk Client Components
+- `getTranslations` dipakai di `SE_` dan `ACT_` — untuk Server Components dan Server Actions
+- Folder `$lang/` **tidak digunakan** — semua string ada di `messages/[locale].json`
+- Prefix `LANG_` **tidak digunakan** — digantikan sepenuhnya oleh `useTranslations` / `getTranslations`
+- Selalu import `Link` dari `@/i18n/navigation` — bukan dari `next/link`
+
+---
+
+## Referensi
+
+- [next-intl Docs](https://next-intl.dev/)
+- [Pattern H — i18n dengan next-intl](/patterns/i18n)
+- [Folder Structure — messages/](/conventions/folder-structure)
