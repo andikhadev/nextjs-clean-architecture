@@ -53,6 +53,8 @@ export default defineConfig({
                         { label: "D — URL Search Params", slug: "patterns/url-params" },
                         { label: "E — Zustand Store", slug: "patterns/zustand" },
                         { label: "F — shadcn/ui Extension", slug: "patterns/shadcn" },
+                        { label: "G — Library Adapter", slug: "patterns/lib-adapter" },
+                        { label: "H — i18n (next-intl)", slug: "patterns/i18n" },
                     ],
                 },
                 {
@@ -63,6 +65,7 @@ export default defineConfig({
                         { label: "TanStack Query", slug: "stack/tanstack-query" },
                         { label: "TanStack Form", slug: "stack/tanstack-form" },
                         { label: "Zod", slug: "stack/zod" },
+                        { label: "next-intl", slug: "stack/next-intl" },
                     ],
                 },
                 { label: "Contributing", slug: "contributing" },
