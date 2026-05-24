@@ -1,6 +1,175 @@
 ---
-title: G — Library Adapter
-description: Coming soon
+title: "Pattern G — Library Adapter"
+description: Abstraksi integrasi library eksternal (Redis, S3, email, queue) di balik interface di lib/[domain]/, sehingga mengganti library hanya membutuhkan perubahan satu file.
 ---
 
-Coming soon
+## Tujuan
+
+Setiap kali project mengintegrasikan library eksternal — cache Redis, object storage S3, email via Nodemailer atau Resend, job queue — ada risiko vendor lock-in. Pattern G mendefinisikan lapisan abstraksi di `lib/[domain]/`: satu interface di `index.ts`, satu implementasi konkret di `[library].ts`. Kode feature hanya import dari `lib/[domain]` dan tidak tahu library mana yang dipakai di balik interface tersebut. Mengganti library = tulis implementasi baru + ubah satu baris re-export di `index.ts`. Tidak ada perubahan di kode feature.
+
+---
+
+## Aturan
+
+1. **Semua integrasi library eksternal masuk ke `lib/[domain]/`** — jangan import library langsung di feature code.
+2. **Interface adapter** didefinisikan di `lib/[domain]/index.ts` dengan nama `I_[Domain]Adapter`.
+3. **Implementasi konkret** dinamai sesuai library: `ioredis.ts`, `upstash.ts`, `nodemailer.ts`, `resend.ts`.
+4. **`index.ts` hanya re-export implementasi aktif** — tidak ada logika bisnis di sini.
+5. **Feature code import dari `@/lib/[domain]`** — tidak pernah dari `ioredis`, `nodemailer`, atau library lainnya secara langsung.
+6. **Satu domain, satu interface** — jangan gabungkan cache dan mailer dalam satu adapter.
+7. **Environment variable** ditangani di dalam file implementasi, bukan di feature code.
+
+---
+
+## Struktur
+
+```
+lib/
+└── cache/
+    ├── index.ts       interface I_CacheAdapter + re-export implementasi aktif
+    └── ioredis.ts     implementasi konkret menggunakan ioredis
+```
+
+---
+
+## Contoh
+
+### `lib/cache/index.ts`
+
+```ts
+// lib/cache/index.ts
+
+export interface I_CacheAdapter {
+    get(key: string): Promise<string | null>
+    set(key: string, value: string, ttlSeconds?: number): Promise<void>
+    del(key: string): Promise<void>
+}
+
+// Ganti baris ini untuk pindah ke library lain
+export { cache } from "./ioredis"
+```
+
+### `lib/cache/ioredis.ts`
+
+```ts
+// lib/cache/ioredis.ts
+import { Redis } from "ioredis"
+import type { I_CacheAdapter } from "."
+
+const client = new Redis(process.env.REDIS_URL!)
+
+export const cache: I_CacheAdapter = {
+    get: (key) => client.get(key),
+
+    set: (key, value, ttl) =>
+        ttl
+            ? client.set(key, value, "EX", ttl).then(() => {})
+            : client.set(key, value).then(() => {}),
+
+    del: (key) => client.del(key).then(() => {}),
+}
+```
+
+### Feature code menggunakan adapter
+
+```ts
+// app/login/$function/sfn.session.ts
+import { cache } from "@/lib/cache"
+
+export async function SFN_SaveSession(userId: string, token: string) {
+    await cache.set(`session:${token}`, userId, 3600)
+}
+
+export async function SFN_GetSession(token: string): Promise<string | null> {
+    return cache.get(`session:${token}`)
+}
+
+export async function SFN_ClearSession(token: string) {
+    await cache.del(`session:${token}`)
+}
+```
+
+Perhatikan: `SFN_SaveSession` tidak tahu bahwa implementasinya menggunakan ioredis.
+
+---
+
+## Mengganti Library
+
+Misalnya ingin pindah dari ioredis ke Upstash Redis:
+
+**1. Buat implementasi baru:**
+
+```ts
+// lib/cache/upstash.ts
+import { Redis } from "@upstash/redis"
+import type { I_CacheAdapter } from "."
+
+const client = new Redis({
+    url: process.env.UPSTASH_REDIS_REST_URL!,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+})
+
+export const cache: I_CacheAdapter = {
+    get: (key) => client.get(key),
+    set: (key, value, ttl) => client.set(key, value, ttl ? { ex: ttl } : undefined).then(() => {}),
+    del: (key) => client.del(key).then(() => {}),
+}
+```
+
+**2. Ubah satu baris di `index.ts`:**
+
+```ts
+// Sebelum
+export { cache } from "./ioredis"
+
+// Sesudah
+export { cache } from "./upstash"
+```
+
+Tidak ada perubahan di feature code. `SFN_SaveSession` dan semua kode lain tetap berjalan normal.
+
+---
+
+## Contoh Domain Lain
+
+### `lib/mailer/index.ts`
+
+```ts
+// lib/mailer/index.ts
+
+export interface I_MailerAdapter {
+    send(options: {
+        to: string
+        subject: string
+        html: string
+    }): Promise<void>
+}
+
+export { mailer } from "./nodemailer"
+```
+
+### Penggunaan di feature
+
+```ts
+// app/auth/$function/sfn.sendverification.ts
+import { mailer } from "@/lib/mailer"
+
+export async function SFN_SendVerificationEmail(email: string, code: string) {
+    await mailer.send({
+        to: email,
+        subject: "Verifikasi akun Anda",
+        html: `<p>Kode verifikasi: <strong>${code}</strong></p>`,
+    })
+}
+```
+
+---
+
+## Kapan Tidak Pakai Ini
+
+| Situasi | Yang Tepat |
+|---------|-----------|
+| Library hanya dipakai sekali dan tidak mungkin diganti | Import langsung boleh — overhead abstraksi tidak worth it |
+| Utility murni tanpa side effect (date formatting, string helpers) | Taruh di `lib/utils.ts` langsung |
+| Library adalah bagian core framework (Next.js, React) | Tidak perlu dibungkus |
+| Database ORM (Prisma, Drizzle) | Abstraksi lebih kompleks — pattern ini tetap berlaku tapi interface-nya lebih besar |

@@ -1,6 +1,256 @@
 ---
-title: H — i18n (next-intl)
-description: Coming soon
+title: "Pattern H — i18n dengan next-intl"
+description: Semua teks user-facing wajib melalui next-intl — useTranslations di Client Component, getTranslations di Server Component dan Server Action, dengan namespace per feature di messages/[locale].json.
 ---
 
-Coming soon
+## Tujuan
+
+Pattern H memastikan tidak ada string hardcode yang tampil ke user. Semua label, pesan error, placeholder, dan teks UI disimpan di `messages/[locale].json` di root project, dikelompokkan per namespace feature. Client Component menggunakan `useTranslations`, Server Component dan Server Action menggunakan `getTranslations` (async). Dengan pola ini, menambah bahasa baru = tambah satu file JSON tanpa menyentuh satu pun file TypeScript.
+
+---
+
+## Aturan
+
+1. **String user-facing selalu melalui `t()`** — tidak ada string literal bahasa Indonesia atau Inggris di dalam JSX/TSX.
+2. **Satu namespace per feature** — gunakan nama feature sebagai key utama: `"Login"`, `"UserList"`, `"Dashboard"`.
+3. **Lokasi messages: `messages/[locale].json` di root** — bukan di dalam folder feature.
+4. **Client Component (`CE_`):** `const t = useTranslations("FeatureName")` dari `next-intl`.
+5. **Server Component (`SE_`):** `const t = await getTranslations("FeatureName")` dari `next-intl/server`.
+6. **Server Action (`ACT_`):** `const t = await getTranslations("FeatureName")` — async, import dari `next-intl/server`.
+7. **Jangan gunakan prefix `LANG_`** — convention ini sudah dihapus di v2.
+8. **Gunakan `Link` dari `@/i18n/navigation`** — bukan dari `next/link` — agar locale dipertahankan di URL.
+9. **Setup:** `i18n/routing.ts` + `i18n/request.ts` + `src/middleware.ts` (atau `proxy.ts` di Next.js 16+).
+
+---
+
+## Struktur File
+
+```
+messages/
+├── en.json       semua teks bahasa Inggris
+└── id.json       semua teks bahasa Indonesia
+
+src/
+├── i18n/
+│   ├── routing.ts      defineRouting — daftar locale, default locale
+│   ├── request.ts      getRequestConfig — load messages per request
+│   └── navigation.ts   Link, redirect, useRouter (locale-aware)
+└── middleware.ts       createMiddleware(routing) + matcher
+```
+
+---
+
+## Contoh
+
+### `messages/id.json`
+
+```json
+{
+  "Login": {
+    "title": "Masuk ke Akun",
+    "email": "Email",
+    "password": "Kata Sandi",
+    "submit": "Masuk",
+    "forgotPassword": "Lupa kata sandi?",
+    "error": {
+      "invalidCredentials": "Email atau kata sandi salah",
+      "tooManyAttempts": "Terlalu banyak percobaan. Coba lagi dalam {minutes} menit."
+    }
+  },
+  "UserList": {
+    "title": "Daftar Pengguna",
+    "searchPlaceholder": "Cari pengguna...",
+    "empty": "Belum ada pengguna",
+    "columns": {
+      "name": "Nama",
+      "email": "Email",
+      "role": "Peran"
+    }
+  }
+}
+```
+
+### Setup: `src/i18n/routing.ts`
+
+```ts
+// src/i18n/routing.ts
+import { defineRouting } from "next-intl/routing"
+
+export const routing = defineRouting({
+    locales: ["id", "en"],
+    defaultLocale: "id",
+})
+```
+
+### Setup: `src/i18n/request.ts`
+
+```ts
+// src/i18n/request.ts
+import { getRequestConfig } from "next-intl/server"
+import { hasLocale } from "next-intl"
+import { routing } from "./routing"
+
+export default getRequestConfig(async ({ requestLocale }) => {
+    const requested = await requestLocale
+    const locale = hasLocale(routing.locales, requested)
+        ? requested
+        : routing.defaultLocale
+
+    return {
+        locale,
+        messages: (await import(`../../messages/${locale}.json`)).default,
+    }
+})
+```
+
+### Setup: `src/middleware.ts`
+
+```ts
+// src/middleware.ts
+import createMiddleware from "next-intl/middleware"
+import { routing } from "./i18n/routing"
+
+export default createMiddleware(routing)
+
+export const config = {
+    matcher: "/((?!api|_next|_vercel|.*\\..*).*)",
+}
+```
+
+### CE_ — Client Component
+
+```tsx
+// app/login/$element/client.form.tsx
+"use client"
+
+import { useTranslations } from "next-intl"
+import { useForm } from "@tanstack/react-form"
+import { zodValidator } from "@tanstack/zod-form-adapter"
+import { ZS_LoginForm } from "../login.schema"
+import { ACT_SubmitLogin } from "../$action/action.submit"
+
+export function CE_LoginForm() {
+    const t = useTranslations("Login")
+
+    const form = useForm({
+        defaultValues: { email: "", password: "" },
+        validators: { onSubmit: ZS_LoginForm },
+        validatorAdapter: zodValidator(),
+        onSubmit: async ({ value }) => {
+            await ACT_SubmitLogin(value)
+        },
+    })
+
+    return (
+        <form onSubmit={(e) => { e.preventDefault(); form.handleSubmit() }}>
+            <form.Field name="email">
+                {(field) => (
+                    <>
+                        <label htmlFor="email">{t("email")}</label>
+                        <input
+                            id="email"
+                            type="email"
+                            value={field.state.value}
+                            onChange={(e) => field.handleChange(e.target.value)}
+                            onBlur={field.handleBlur}
+                        />
+                        {field.state.meta.errors[0] && (
+                            <p>{field.state.meta.errors[0].toString()}</p>
+                        )}
+                    </>
+                )}
+            </form.Field>
+
+            <form.Subscribe selector={(s) => [s.canSubmit, s.isSubmitting]}>
+                {([canSubmit, isSubmitting]) => (
+                    <button type="submit" disabled={!canSubmit || isSubmitting}>
+                        {isSubmitting ? "..." : t("submit")}
+                    </button>
+                )}
+            </form.Subscribe>
+        </form>
+    )
+}
+```
+
+### SE_ — Server Component
+
+```tsx
+// app/login/$element/server.layout.tsx
+import { getTranslations } from "next-intl/server"
+import { CE_LoginForm } from "./client.form"
+
+export async function SE_LoginLayout() {
+    const t = await getTranslations("Login")
+
+    return (
+        <main className="flex min-h-screen items-center justify-center">
+            <div className="w-full max-w-sm space-y-6">
+                <h1 className="text-2xl font-semibold">{t("title")}</h1>
+                <CE_LoginForm />
+            </div>
+        </main>
+    )
+}
+```
+
+### ACT_ — Server Action dengan pesan error dari i18n
+
+```ts
+// app/login/$action/action.submit.ts
+"use server"
+
+import { getTranslations } from "next-intl/server"
+import { redirect } from "next/navigation"
+import { ZS_LoginForm } from "../login.schema"
+import { APIS_Login } from "@/api/auth/login"
+import { SFN_SaveSession } from "../$function/sfn.session"
+import type { IRq_Login } from "@/api/auth/login.type"
+
+export async function ACT_SubmitLogin(data: IRq_Login) {
+    const t = await getTranslations("Login")
+
+    const parsed = ZS_LoginForm.safeParse(data)
+    if (!parsed.success) return { error: parsed.error.flatten().fieldErrors }
+
+    const result = await APIS_Login(parsed.data)
+    if (!result.ok) {
+        return { error: { _root: [t("error.invalidCredentials")] } }
+    }
+
+    await SFN_SaveSession(result.data!.token)
+    redirect("/dashboard")
+}
+```
+
+### Interpolasi dengan parameter
+
+Untuk pesan yang mengandung variabel dinamis, gunakan interpolasi next-intl:
+
+```json
+// messages/id.json
+{
+  "Login": {
+    "error": {
+      "tooManyAttempts": "Terlalu banyak percobaan. Coba lagi dalam {minutes} menit."
+    }
+  }
+}
+```
+
+```tsx
+// Di dalam CE_ atau ACT_
+t("error.tooManyAttempts", { minutes: 15 })
+// → "Terlalu banyak percobaan. Coba lagi dalam 15 menit."
+```
+
+---
+
+## Kapan Tidak Pakai Ini
+
+| Situasi | Yang Tepat |
+|---------|-----------|
+| String hanya untuk developer (log, error internal) | String literal boleh — tidak perlu terjemahan |
+| Teks di dalam konfigurasi (metadata SEO) | `getTranslations` di `generateMetadata()` — tetap Pattern H |
+| Project single-language tanpa rencana i18n | `useState` / string literal boleh, tapi Pattern H mempermudah migrasi ke depan |
+| Konten yang datang dari database/CMS | Tangani di layer API — bukan di messages JSON |
