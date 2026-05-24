@@ -88,6 +88,10 @@ export function CE_SearchInput({
 
 ### `lib/ui/app-button.tsx` — shared wrapper
 
+:::note
+**Penamaan di `lib/ui/`:** Prefix `CE_` **hanya** digunakan untuk komponen di `$element/` (scoped ke satu feature). Komponen di `lib/ui/` **tidak** menggunakan prefix `CE_` — gunakan nama deskriptif biasa dengan PascalCase (contoh: `AppButton`, `FormField`, `DataTable`).
+:::
+
 Untuk wrapper yang dipakai di banyak feature, taruh di `lib/ui/`:
 
 ```tsx

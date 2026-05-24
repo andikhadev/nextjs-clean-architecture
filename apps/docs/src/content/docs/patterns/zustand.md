@@ -160,6 +160,19 @@ export function CE_UserTable({ items }: { items: I_User[] }) {
 }
 ```
 
+:::note
+**Gunakan `useShallow`** saat subscribe ke beberapa field sekaligus (sesuai aturan no. 6). Tanpa `useShallow`, komponen akan re-render setiap kali *objek* yang dikembalikan berbeda referensi meskipun nilainya sama.
+
+```ts
+// Lebih efisien: gunakan useShallow agar tidak re-render jika referensi tidak berubah
+import { useShallow } from "zustand/react/shallow"
+
+const { selectedIds, selectRow } = useUserListSelectionStore(
+  useShallow((s) => ({ selectedIds: s.selectedIds, selectRow: s.selectRow }))
+)
+```
+:::
+
 ```tsx
 // CE_BulkActionBar — subscribe ke selectedIds
 "use client"
