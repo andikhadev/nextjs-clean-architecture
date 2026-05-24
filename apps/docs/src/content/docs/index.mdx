@@ -1,12 +1,81 @@
 ---
 title: Next.js Clean Architecture
-description: Convention guide for Next.js 15+ App Router projects
+description: Convention guide for Next.js 15+ App Router — folder structure, naming, and data flow patterns.
 template: splash
 hero:
-  tagline: Convention guide for Next.js 15+ App Router projects — folder structure, naming, and patterns.
+  tagline: Folder structure, naming conventions, dan data flow patterns untuk Next.js 15+ App Router.
   actions:
-    - text: Get Started
+    - text: Mulai di sini
       link: /structure/overview
       icon: right-arrow
       variant: primary
+    - text: Lihat Patterns
+      link: /patterns/overview
+      icon: open-book
 ---
+
+## Apa Ini?
+
+Convention guide ini mendefinisikan cara terstruktur untuk membangun aplikasi Next.js 15+ dengan App Router.
+Tujuannya satu: **setiap developer (dan AI) bisa langsung paham kode tanpa penjelasan tambahan**.
+
+Convention ini mencakup tiga area:
+
+| Area | Isi |
+|------|-----|
+| **Folder Structure** | Di mana meletakkan setiap jenis file |
+| **Naming Conventions** | Prefix dan pattern untuk semua simbol |
+| **Pattern Guide** | Cara data mengalir dari server ke client |
+
+---
+
+## Stack yang Diasumsikan
+
+```
+Next.js 15+  (App Router)
+├── UI            shadcn/ui
+├── State         Zustand (transient) | nuqs (URL Search Params)
+├── Server State  TanStack Query
+├── Forms         TanStack Form + Zod
+├── i18n          next-intl
+└── Language      TypeScript strict
+```
+
+---
+
+## 8 Pattern Data Flow
+
+Setiap fitur dibangun menggunakan satu atau lebih dari 8 pattern berikut:
+
+| Pattern | Nama | Kapan Dipakai |
+|---------|------|---------------|
+| A | Server Fetch | Data dibutuhkan saat halaman pertama render |
+| B | Client Fetch (TanStack Query) | Data perlu di-refresh atau polling |
+| C | Form Submit | Semua form — create, update, delete |
+| D | URL Search Params (nuqs) | Search, filter, pagination yang bisa di-bookmark |
+| E | Zustand | Modal, selection, toggle — state yang tidak perlu di URL |
+| F | shadcn/ui Extension | Semua komponen UI berbasis shadcn |
+| G | Library Adapter | Integrasi Redis, S3, email, dll. |
+| H | i18n dengan next-intl | Semua teks yang tampil ke user |
+
+---
+
+## Prasyarat
+
+Dokumentasi ini mengasumsikan kamu sudah familiar dengan:
+
+- **Next.js App Router** — Server Components, Server Actions, routing
+- **TypeScript** — interface, type alias, generics
+- **React** — hooks, lifecycle, Client vs Server Component
+- **Tailwind CSS** — utility-first styling
+
+---
+
+## Cara Baca Dokumentasi Ini
+
+Baca berurutan untuk pemahaman lengkap:
+
+1. [Structure Overview](/structure/overview) — pahami folder structure dulu
+2. [Naming Overview](/naming/overview) — kenali semua prefix dan pattern naming
+3. [Patterns Overview](/patterns/overview) — pelajari 8 pattern data flow
+4. Buka halaman detail per pattern sesuai kebutuhan
