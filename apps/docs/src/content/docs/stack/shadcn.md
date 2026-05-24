@@ -118,4 +118,4 @@ export function CE_StatusBadge({ isActive }: { isActive: boolean }) {
 
 - [shadcn/ui Docs](https://ui.shadcn.com/docs)
 - [Pattern F — shadcn/ui Extension](/patterns/shadcn)
-- [Naming Convention — CE_ prefix](/conventions/naming)
+- [Naming Convention — CE_ prefix](/naming/symbol)

@@ -125,7 +125,7 @@ export function CE_DeleteButton({ userId }: { userId: string }) {
     mutationFn: (id: string) => APIS_DeleteUser(id),
     onSuccess: () => {
       // Invalidasi agar list otomatis refresh
-      queryClient.invalidateQueries({ queryKey: ["user", "list"] })
+      queryClient.invalidateQueries({ queryKey: QK_UserList("") })
     },
   })
 
@@ -182,4 +182,4 @@ export async function SE_UserList() {
 
 - [TanStack Query Docs](https://tanstack.com/query/latest)
 - [Pattern B — Client Fetch dengan TanStack Query](/patterns/client-fetch)
-- [Query Key Registry — QK_ prefix](/conventions/naming)
+- [Query Key Registry — QK_ prefix](/naming/symbol)

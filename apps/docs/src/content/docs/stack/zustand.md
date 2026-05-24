@@ -163,4 +163,4 @@ const store = useUIStore()
 
 - [Zustand Docs](https://zustand.docs.pmnd.rs/)
 - [Pattern E — Cross-component State via Zustand](/patterns/zustand)
-- [Naming Convention — useXxxStore](/conventions/naming)
+- [Naming Convention — useXxxStore](/naming/symbol)
