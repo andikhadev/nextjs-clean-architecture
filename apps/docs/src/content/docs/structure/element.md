@@ -109,11 +109,12 @@ import { CE_UserTable } from "./client.table"
 export async function SE_UserListLayout({
     searchParams,
 }: {
-    searchParams: { q?: string; page?: string }
+    searchParams: Promise<{ q?: string; page?: string }>
 }) {
+    const params = await searchParams
     const data = await APIS_GetUsers({
-        search: searchParams.q ?? "",
-        page: Number(searchParams.page ?? 1),
+        search: params.q ?? "",
+        page: Number(params.page ?? 1),
     })
 
     return <CE_UserTable data={data.items} total={data.total} />
