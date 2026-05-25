@@ -37,6 +37,11 @@ Bergantung pada: Step 01 (spec selesai) + Step 02 (Astro sudah running).
 - [x] Zod — pola penulisan schema, ZS_ prefix
 - [x] next-intl — setup, namespace per feature, server vs client usage
 
+### Example Use Case (konten baru)
+- [x] Contoh 1 — Landing Page Bilingual (Pattern A, F, H) — `examples/landing-page.mdx`
+- [x] Contoh 2 — User Management (Pattern A, B, C, D, E, H) — `examples/user-management.mdx`
+- [x] Contoh 3 — Form Wizard (Pattern C, E, F, H) — `examples/form-wizard.mdx`
+
 ### AI Workflow (konten baru)
 - [ ] Halaman "Skills & Commands" — daftar skills + commands tersedia
 - [ ] Instruksi install via skills.sh

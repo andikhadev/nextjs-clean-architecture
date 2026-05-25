@@ -28,8 +28,8 @@ Next.js 15+  (App Router)
 |---|------|-------------|--------|
 | 1 | Convention v2 Spec | [01-convention-spec.md](01-convention-spec.md) | ✅ Selesai |
 | 2 | Astro Starlight — Setup | [02-astro-starlight.md](02-astro-starlight.md) | ✅ Selesai |
-| 3 | Astro Starlight — Konten | [03-content.md](03-content.md) | 🔲 Belum dimulai |
-| 4 | llms.txt | [04-llms-txt.md](04-llms-txt.md) | 🔲 Belum dimulai |
+| 3 | Astro Starlight — Konten | [03-content.md](03-content.md) | ✅ Selesai |
+| 4 | llms.txt | [04-llms-txt.md](04-llms-txt.md) | ✅ Selesai |
 | 5 | AI Workflow | [05-ai-workflow.md](05-ai-workflow.md) | 🔲 Belum dimulai |
 | 6 | Claude Skills | [06-claude-skills.md](06-claude-skills.md) | 🔲 Belum dimulai |
 | 7 | Deploy | [07-deploy.md](07-deploy.md) | 🔲 Belum dimulai |
@@ -82,5 +82,5 @@ Item ini tidak masuk v2 — dijadwalkan setelah v2 rilis dan diadopsi.
 
 ## Referensi
 
-- [Login example](../example/login/) — implementasi fitur login sebagai referensi pattern awal
+- [Example Use Case — docs](../apps/docs/src/content/docs/examples/) — 3 contoh nyata: Landing Page Bilingual, User Management, Form Wizard
 - [Docs lama](../legacy/) — konten v1 yang akan dimigrasikan

@@ -74,6 +74,14 @@ export default defineConfig({
                         { label: "next-intl", slug: "stack/next-intl" },
                     ],
                 },
+                {
+                    label: "Example Use Case",
+                    items: [
+                        { label: "Landing Page Bilingual", slug: "examples/landing-page" },
+                        { label: "User Management", slug: "examples/user-management" },
+                        { label: "Form Wizard", slug: "examples/form-wizard" },
+                    ],
+                },
                 { label: "Contributing", slug: "contributing" },
             ],
             customCss: ["./src/styles/custom.css"],

@@ -24,8 +24,10 @@ Convention guide for Next.js 15+ App Router projects.
 ```
 .planning/          ← context files per area (baca ini sebelum mulai kerja)
 legacy/             ← dokumentasi v1 (vanilla HTML + Markdown, akan dimigrasikan ke Astro)
-example/
-└── login/          ← contoh implementasi fitur login sesuai convention
+apps/docs/src/content/docs/examples/
+├── landing-page.mdx    ← Contoh 1: Landing Page Bilingual (Pattern A, F, H)
+├── user-management.mdx ← Contoh 2: User Management (Pattern A, B, C, D, E, H)
+└── form-wizard.mdx     ← Contoh 3: Form Wizard (Pattern C, E, F, H)
 ```
 
 ---
