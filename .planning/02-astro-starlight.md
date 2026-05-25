@@ -1,6 +1,6 @@
 # 02 — Astro Starlight: Setup
 
-**Status:** 🔲 Belum dimulai
+**Status:** ✅ Selesai
 **Tujuan:** Inisiasi project Astro Starlight sebagai platform dokumentasi baru,
 menggantikan docs site vanilla HTML/JS saat ini. Deploy ke Vercel.
 
@@ -8,12 +8,12 @@ menggantikan docs site vanilla HTML/JS saat ini. Deploy ke Vercel.
 
 ## Checklist
 
-- [ ] Init project Astro + Starlight
-- [ ] Konfigurasi sidebar structure di `astro.config.mjs`
-- [ ] Install Vercel adapter
-- [ ] Setup `vercel.json` jika diperlukan
-- [ ] Push ke GitHub, connect ke Vercel
-- [ ] Verifikasi preview URL berjalan
+- [x] Init project Astro + Starlight
+- [x] Konfigurasi sidebar structure di `astro.config.mjs`
+- [x] Install Vercel adapter
+- [x] Setup `vercel.json` jika diperlukan
+- [x] Push ke GitHub, connect ke Vercel
+- [x] Verifikasi preview URL berjalan
 - [ ] Custom domain (jika sudah ada)
 
 ---

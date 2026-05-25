@@ -1,43 +1,3 @@
-# 04 — llms.txt
-
-**Status:** 🔲 Belum dimulai
-**Tujuan:** Membuat file machine-readable yang memudahkan AI (Claude, Cursor, Copilot, dll)
-memahami convention ini secara instan tanpa perlu membaca seluruh dokumentasi.
-Bergantung pada: Step 01 (spec selesai).
-
----
-
-## Checklist
-
-- [x] Tulis `llms.txt` — ringkasan convention (untuk quick context)
-- [x] Tulis `llms-full.txt` — versi lengkap dengan semua contoh kode (Pattern A–H)
-- [x] Tempatkan di `apps/docs/public/` agar accessible di root URL
-- [ ] Verifikasi `[domain]/llms.txt` bisa diakses setelah deploy
-- [x] Tambahkan link di homepage docs
-- [x] Tambahkan meta tag `<link rel="llms" href="/llms.txt">` di `<head>`
-
-> **Sync rule:** Setiap perubahan `01-convention-spec.md` wajib diikuti update `llms.txt`
-> dan `llms-full.txt` sebelum perubahan di-commit. Lihat tabel sinkronisasi di `ROADMAP.md`.
-
----
-
-## Apa itu llms.txt
-
-Format standar yang sedang berkembang (mirip `robots.txt`) untuk memberikan
-konteks terstruktur kepada AI tentang sebuah project atau dokumentasi.
-
-Referensi: https://llmstxt.org
-
-Manfaat untuk convention ini:
-- Developer bisa paste URL `llms.txt` ke Claude/Cursor dan langsung dapat context
-- Claude Skills bisa fetch `llms.txt` sebagai ground truth sebelum generate kode
-- Memastikan AI tidak mengarang convention yang tidak ada
-
----
-
-## Format `llms.txt` (ringkasan)
-
-```txt
 # Next.js Clean Architecture Convention v2
 
 > Convention guide for structuring Next.js 15+ App Router projects.
@@ -116,42 +76,6 @@ Types: feat, fix, docs, refactor, chore, test, perf, style
 
 ## Docs
 
-- Full documentation: https://[domain]/
-- llms-full.txt (with code examples): https://[domain]/llms-full.txt
-- Skills & commands: https://[domain]/skills
-```
-
----
-
-## Format `llms-full.txt` (dengan kode)
-
-Sama seperti `llms.txt` tapi setiap pattern disertai contoh kode lengkap.
-Ukuran estimasi: ~5000 token. Cocok untuk di-paste langsung ke context AI.
-
-Struktur tambahan di `llms-full.txt`:
-- Contoh kode untuk setiap pattern (A–F)
-- Contoh file lengkap: action, element, store, schema, API
-- Daftar semua prefix dengan contoh
-
----
-
-## Catatan Pengembangan Lanjutan
-
-### Update llms.txt saat ada convention baru
-
-Setiap kali ada penambahan convention (misal: i18n pattern dengan next-intl):
-1. Tambahkan entry di section "Patterns" atau "Key Rules"
-2. Update `llms-full.txt` dengan contoh kode baru
-3. Bump version di baris pertama: `# Next.js Clean Architecture Convention v2.1`
-
-### Integrasi dengan Claude Skills
-
-Skill `nextjs-ca-scaffold` dan `nextjs-ca-review` bisa di-setup untuk
-fetch `llms.txt` di awal eksekusi sebagai ground truth:
-
-```md
-<!-- di dalam skill prompt -->
-Before generating any code, fetch the convention spec from:
-https://[domain]/llms.txt
-Use it as the source of truth for all naming and structure decisions.
-```
+- Full documentation: https://nextjs-clean-architecture.vercel.app/
+- llms-full.txt (with code examples): https://nextjs-clean-architecture.vercel.app/llms-full.txt
+- Skills & commands: https://nextjs-clean-architecture.vercel.app/skills

@@ -10,9 +10,9 @@ Convention guide for Next.js 15+ App Router projects.
 | Area | File Konteks | Status |
 |------|-------------|--------|
 | Convention v2 Spec | `.planning/01-convention-spec.md` | ✅ Selesai |
-| Astro Starlight Setup | `.planning/02-astro-starlight.md` | 🔲 Belum dimulai |
-| Konten Dokumentasi | `.planning/03-content.md` | 🔲 Belum dimulai |
-| llms.txt | `.planning/04-llms-txt.md` | 🔲 Belum dimulai |
+| Astro Starlight Setup | `.planning/02-astro-starlight.md` | ✅ Selesai |
+| Konten Dokumentasi | `.planning/03-content.md` | ✅ Selesai |
+| llms.txt | `.planning/04-llms-txt.md` | ✅ Selesai |
 | AI Workflow | `.planning/05-ai-workflow.md` | 🔲 Belum dimulai |
 | Claude Skills | `.planning/06-claude-skills.md` | 🔲 Belum dimulai |
 | Deploy | `.planning/07-deploy.md` | 🔲 Belum dimulai |

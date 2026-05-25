@@ -7,6 +7,12 @@ export default defineConfig({
     adapter: vercel(),
     integrations: [
         starlight({
+            head: [
+                {
+                    tag: "link",
+                    attrs: { rel: "llms", href: "/llms.txt" },
+                },
+            ],
             title: "Next.js Clean Architecture",
             description: "Convention guide for Next.js 15+ App Router projects",
             social: [

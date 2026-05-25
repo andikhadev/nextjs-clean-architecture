@@ -1,6 +1,6 @@
 # 01 — Convention v2 Spec
 
-**Status:** 🔲 Belum dimulai
+**Status:** ✅ Selesai
 **Tujuan:** Mendefinisikan ulang semua aturan folder, naming, dan pattern data flow
 sebagai fondasi dari dokumentasi dan Claude Skills.
 
@@ -9,25 +9,25 @@ sebagai fondasi dari dokumentasi dan Claude Skills.
 ## Checklist
 
 ### Folder Structure
-- [ ] Root structure finalized
-- [ ] Feature structure finalized
-- [ ] Aturan `$store` vs global store
-- [ ] Posisi Zod schema
+- [x] Root structure finalized
+- [x] Feature structure finalized
+- [x] Aturan `$store` vs global store
+- [x] Posisi Zod schema
 
 ### Naming Conventions
-- [ ] File naming — semua tipe
-- [ ] Symbol naming — semua prefix
-- [ ] Folder naming
+- [x] File naming — semua tipe
+- [x] Symbol naming — semua prefix
+- [x] Folder naming
 
 ### Pattern Guide
-- [ ] Pattern A — Server fetch
-- [ ] Pattern B — Client fetch (TanStack Query)
-- [ ] Pattern C — Form submit (TanStack Form + Zod + Server Action)
-- [ ] Pattern D — Cross-component: URL Search Params
-- [ ] Pattern E — Cross-component: Zustand
-- [ ] Pattern F — shadcn/ui extension
-- [ ] Pattern G — Library abstraction (Adapter)
-- [ ] Pattern H — i18n dengan next-intl
+- [x] Pattern A — Server fetch
+- [x] Pattern B — Client fetch (TanStack Query)
+- [x] Pattern C — Form submit (TanStack Form + Zod + Server Action)
+- [x] Pattern D — Cross-component: URL Search Params
+- [x] Pattern E — Cross-component: Zustand
+- [x] Pattern F — shadcn/ui extension
+- [x] Pattern G — Library abstraction (Adapter)
+- [x] Pattern H — i18n dengan next-intl
 
 ---
 

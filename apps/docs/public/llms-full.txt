@@ -1,0 +1,470 @@
+# Next.js Clean Architecture Convention v2
+
+> Convention guide for structuring Next.js 15+ App Router projects.
+> Stack: Next.js 15, TypeScript, shadcn/ui, Zustand, nuqs, TanStack Query, TanStack Form, Zod, next-intl.
+
+## Folder Structure
+
+- `messages/` — next-intl locale files (en.json, id.json) — at project root
+- `src/app/[feature]/` — one directory per feature
+- `src/app/[feature]/$action/` — Next.js Server Actions (ACT_ prefix)
+- `src/app/[feature]/$element/` — React components (SE_ server, CE_ client)
+- `src/app/[feature]/$function/` — helper functions (SFN_ server, CFN_ client)
+- `src/app/[feature]/$store/` — Zustand stores scoped to this feature
+- `src/api/[feature]/` — fetch wrappers per feature (APIS_ prefix)
+- `src/i18n/` — next-intl routing + request config
+- `src/lib/[domain]/` — third-party adapters (index.ts interface + [library].ts impl)
+- `src/reg/` — global constants: routes (ROUTE_), query keys (QK_)
+- `src/store/` — global Zustand stores (used by 2+ features)
+
+### API Layer
+
+```
+api/
+├── [feature]/
+│   ├── [resource].ts        fetch functions
+│   └── [resource].type.ts   IRq_ and IRs_ interfaces
+└── common.ts                shared headers, base fetcher, error handler
+```
+
+### Lib Layer
+
+```
+lib/
+├── query-client.ts     TanStack Query client instance
+├── session.ts          session management (get/set/clear cookie)
+├── utils.ts            shared helpers (cn, format date, etc.)
+└── [domain]/           external library abstraction
+    ├── index.ts        interface + re-export of active implementation
+    └── [library].ts    concrete implementation (ioredis, upstash, etc.)
+```
+
+### Registry
+
+```
+reg/
+├── routes.register.ts      all path constants — ROUTE_
+├── query-keys.register.ts  TanStack Query keys — QK_
+└── [domain].register.ts    other domain constants
+```
+
+## Naming: Files
+
+- Server Action: `action.[sub].ts`
+- Server Element: `server.[module].tsx`
+- Client Element: `client.[module].tsx`
+- Server Function: `sfn.[module].ts`
+- Client Function: `cfn.[module].ts`
+- Zustand Store: `[module].store.ts`
+- Zod Schema: `[module].schema.ts`
+- API: `[resource].ts` + `[resource].type.ts`
+- Lib adapter: `[library].ts` (impl) + `index.ts` (interface + re-export)
+- i18n messages: `[locale].json` in `messages/` root
+
+## Naming: Symbols
+
+- ACT_ → Server Action (in $action/, "use server")
+- SE_ → Server Element (Server Component)
+- CE_ → Client Element ("use client")
+- SFN_ → Server Function (server-only helper)
+- CFN_ → Client Function (client-only helper)
+- APIS_ → API fetch function
+- use[Name]Store → Zustand store hook
+- ZS_ → Zod schema
+- QK_ → TanStack Query key constant
+- ROUTE_ → route path constant
+- I_ → TypeScript interface (general)
+- IRq_ → Request interface (API payload)
+- IRs_ → Response interface (API response)
+- T_ → Type alias
+- E_ → Enum
+- I_[Domain]Adapter → lib adapter interface
+
+## Key Rules
+
+- `page.tsx` must only render one SE_ component. No logic allowed.
+- Never modify shadcn/ui components directly. Wrap them in CE_/lib.
+- Use URL Search Params for search/filter/pagination state.
+- Use Zustand only for transient UI state (modals, selections, toggles).
+- GlobalEmitter is forbidden. Use Zustand or URL params instead.
+- Server Actions must validate with Zod before calling APIS_.
+- All API response types use IRs_ prefix. All request types use IRq_.
+- Never import external libraries directly — use adapters in lib/[domain]/.
+- All user-facing strings use useTranslations (CE_) or getTranslations (SE_/SFN_).
+- QK_ values must be defined in reg/query-keys.register.ts, not inline.
+- ROUTE_ values must be defined in reg/routes.register.ts, not inline.
+
+## Patterns
+
+- Pattern A — Server fetch: page → SE_ → APIS_ → CE_ via props
+- Pattern B — Client fetch: CE_ → useQuery(QK_, APIS_)
+- Pattern C — Form submit: CE_ form (useForm/TanStack Form) → ACT_ (plain object) → Zod validate → APIS_
+- Pattern D — Cross-component (persistent): useQueryState (nuqs) → page re-render → SE_ baca
+- Pattern E — Cross-component (transient): useXxxStore from $store/ or store/
+- Pattern F — shadcn/ui extension: wrap in CE_ or lib/, never modify components/ui/
+- Pattern G — Library adapter: lib/[domain]/index.ts (interface) + lib/[domain]/[library].ts (impl)
+- Pattern H — i18n: messages/[locale].json namespaced by feature; useTranslations/getTranslations
+
+## Git Commits
+
+Conventional Commits: <type>(<scope>): <description>
+Types: feat, fix, docs, refactor, chore, test, perf, style
+
+---
+
+## Code Examples
+
+### Pattern A — Server Fetch
+
+Data needed on first render, no interactivity required.
+
+```
+page.tsx → SE_ component → APIS_ → data → CE_ via props
+```
+
+```tsx
+// page.tsx
+export default async function Page({ searchParams }) {
+    const params = await searchParams
+    return <SE_UserList searchParams={params} />
+}
+
+// $element/server.userlist.tsx
+export async function SE_UserList({ searchParams }) {
+    const data = await APIS_GetUsers({ search: searchParams.search })
+    return <CE_UserTable data={data.items} total={data.total} />
+}
+
+// $element/client.usertable.tsx
+"use client"
+export function CE_UserTable({ data, total }: { data: I_User[], total: number }) {
+    return <Table data={data} />
+}
+```
+
+---
+
+### Pattern B — Client Fetch (TanStack Query)
+
+Data needs refresh without navigation, polling, or depends on user interaction.
+
+```
+CE_ component → useQuery(QK_, APIS_) → render
+```
+
+```tsx
+// reg/query-keys.register.ts
+export const QK_UserList = (search: string) => ["user", "list", search]
+
+// $element/client.userlist.tsx
+"use client"
+import { useQuery } from "@tanstack/react-query"
+import { QK_UserList } from "@/reg/query-keys.register"
+import { APIS_GetUsers } from "@/api/user/list"
+
+export function CE_UserList() {
+    const { search } = useFilterStore()
+
+    const { data, isLoading } = useQuery({
+        queryKey: QK_UserList(search),
+        queryFn: () => APIS_GetUsers({ search }),
+    })
+
+    if (isLoading) return <Skeleton />
+    return <Table data={data?.items ?? []} />
+}
+```
+
+---
+
+### Pattern C — Form Submit (TanStack Form + Zod + Server Action)
+
+All form submissions — create, update, delete.
+
+```
+CE_ form (useForm) → onSubmit → ACT_ (plain object) → Zod safeParse → APIS_ → redirect/error
+```
+
+```tsx
+// [feature].schema.ts
+import { z } from "zod"
+
+export const ZS_LoginForm = z.object({
+    email: z.string().email("Invalid email format"),
+    password: z.string().min(8, "Password must be at least 8 characters"),
+})
+
+// $action/action.submit.ts
+"use server"
+import { redirect } from "next/navigation"
+import { ZS_LoginForm } from "../login.schema"
+import type { IRq_Login } from "@/api/auth/login.type"
+
+export async function ACT_SubmitLogin(data: IRq_Login) {
+    const parsed = ZS_LoginForm.safeParse(data)
+    if (!parsed.success) return { error: parsed.error.flatten().fieldErrors }
+
+    const result = await APIS_Login(parsed.data)
+    if (!result.ok || !result.data) return { error: { _root: [result.message] } }
+
+    await SFN_SaveSession(result.data.token)
+    redirect("/dashboard")
+}
+
+// $element/client.form.tsx
+"use client"
+import { useForm } from "@tanstack/react-form"
+import { zodValidator } from "@tanstack/zod-form-adapter"
+import { ACT_SubmitLogin } from "../$action/action.submit"
+import { ZS_LoginForm } from "../login.schema"
+
+export function CE_LoginForm() {
+    const form = useForm({
+        defaultValues: { email: "", password: "" },
+        validators: { onSubmit: ZS_LoginForm },
+        validatorAdapter: zodValidator(),
+        onSubmit: async ({ value }) => {
+            await ACT_SubmitLogin(value)
+        },
+    })
+
+    return (
+        <form onSubmit={(e) => { e.preventDefault(); form.handleSubmit() }}>
+            <form.Field name="email">
+                {(field) => (
+                    <>
+                        <input
+                            type="email"
+                            value={field.state.value}
+                            onChange={(e) => field.handleChange(e.target.value)}
+                            onBlur={field.handleBlur}
+                        />
+                        {field.state.meta.errors[0] && (
+                            <p>{field.state.meta.errors[0].toString()}</p>
+                        )}
+                    </>
+                )}
+            </form.Field>
+            <form.Field name="password">
+                {(field) => (
+                    <>
+                        <input
+                            type="password"
+                            value={field.state.value}
+                            onChange={(e) => field.handleChange(e.target.value)}
+                            onBlur={field.handleBlur}
+                        />
+                        {field.state.meta.errors[0] && (
+                            <p>{field.state.meta.errors[0].toString()}</p>
+                        )}
+                    </>
+                )}
+            </form.Field>
+            <form.Subscribe selector={(s) => [s.canSubmit, s.isSubmitting]}>
+                {([canSubmit, isSubmitting]) => (
+                    <button type="submit" disabled={!canSubmit || isSubmitting}>
+                        {isSubmitting ? "Processing..." : "Login"}
+                    </button>
+                )}
+            </form.Subscribe>
+        </form>
+    )
+}
+```
+
+---
+
+### Pattern D — Cross-component State via URL Search Params
+
+Search, filter, pagination — state that should be shareable and bookmarkable.
+
+```
+CE_SearchBar → useQueryState (nuqs) → page re-render → SE_ reads → new data
+```
+
+```tsx
+// $element/client.searchbar.tsx
+"use client"
+import { useQueryState } from "nuqs"
+import { useDebouncedCallback } from "use-debounce"
+
+export function CE_SearchBar() {
+    const [search, setSearch] = useQueryState("q", { defaultValue: "", shallow: false })
+
+    const handleSearch = useDebouncedCallback((term: string) => {
+        setSearch(term || null)
+    }, 300)
+
+    return (
+        <input
+            defaultValue={search}
+            onChange={(e) => handleSearch(e.target.value)}
+        />
+    )
+}
+```
+
+> `shallow: false` ensures param changes trigger Server Component re-render.
+> For multiple params (search + page + filter), use `useQueryStates` from nuqs.
+
+---
+
+### Pattern E — Cross-component State via Zustand
+
+Transient state not needed in URL — modal open, selected row, sidebar toggle, notifications.
+
+```
+CE_A dispatch → store → CE_B subscribe → re-render
+```
+
+```ts
+// $store/ui.store.ts
+import { create } from "zustand"
+
+interface I_UIStore {
+    selectedId: string | null
+    isModalOpen: boolean
+    setSelectedId: (id: string | null) => void
+    openModal: () => void
+    closeModal: () => void
+}
+
+export const useUIStore = create<I_UIStore>((set) => ({
+    selectedId: null,
+    isModalOpen: false,
+    setSelectedId: (id) => set({ selectedId: id }),
+    openModal: () => set({ isModalOpen: true }),
+    closeModal: () => set({ isModalOpen: false, selectedId: null }),
+}))
+```
+
+```tsx
+// CE_Table — dispatch
+const { setSelectedId, openModal } = useUIStore()
+<button onClick={() => { setSelectedId(row.id); openModal() }}>Detail</button>
+
+// CE_DetailModal — subscribe
+const { selectedId, isModalOpen, closeModal } = useUIStore()
+```
+
+---
+
+### Pattern F — shadcn/ui Extension
+
+Never modify components in `components/ui/` directly. Always wrap.
+
+```tsx
+// lib/button.tsx — shared wrapper over shadcn Button
+import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
+
+export function AppButton({ className, ...props }: React.ComponentProps<typeof Button>) {
+    return <Button className={cn("rounded-lg", className)} {...props} />
+}
+
+// $element/client.savebutton.tsx — feature-specific wrapper
+"use client"
+import { AppButton } from "@/lib/button"
+
+export function CE_SaveButton({ onSave }: { onSave: () => void }) {
+    return <AppButton onClick={onSave}>Save</AppButton>
+}
+```
+
+---
+
+### Pattern G — Library Adapter
+
+Every external library integration must be wrapped in an adapter.
+
+```ts
+// lib/cache/index.ts — interface + export of active implementation
+export interface I_CacheAdapter {
+    get(key: string): Promise<string | null>
+    set(key: string, value: string, ttlSeconds?: number): Promise<void>
+    del(key: string): Promise<void>
+}
+
+export { cache } from "./ioredis"
+
+// lib/cache/ioredis.ts — concrete implementation
+import { Redis } from "ioredis"
+import type { I_CacheAdapter } from "."
+
+const client = new Redis(process.env.REDIS_URL!)
+
+export const cache: I_CacheAdapter = {
+    get: (key) => client.get(key),
+    set: (key, value, ttl) =>
+        ttl
+            ? client.set(key, value, "EX", ttl).then(() => {})
+            : client.set(key, value).then(() => {}),
+    del: (key) => client.del(key).then(() => {}),
+}
+
+// Consumer — does not need to know which library is used
+// $function/sfn.session.ts
+import { cache } from "@/lib/cache"
+
+export async function SFN_SaveSession(token: string) {
+    await cache.set(`session:${token}`, token, 3600)
+}
+```
+
+To swap ioredis → upstash: create `lib/cache/upstash.ts`, update the re-export in `index.ts`. Done.
+
+---
+
+### Pattern H — i18n with next-intl
+
+All user-facing text — labels, error messages, placeholders.
+
+```json
+// messages/en.json
+{
+  "Login": {
+    "title": "Sign In",
+    "email": "Email",
+    "password": "Password",
+    "submit": "Sign In",
+    "error": {
+      "invalidCredentials": "Invalid email or password"
+    }
+  }
+}
+```
+
+```tsx
+// CE_ — Client Component
+"use client"
+import { useTranslations } from "next-intl"
+
+export function CE_LoginForm() {
+    const t = useTranslations("Login")
+    return (
+        <form>
+            <label>{t("email")}</label>
+            <button>{t("submit")}</button>
+        </form>
+    )
+}
+
+// SE_ — Server Component
+import { getTranslations } from "next-intl/server"
+
+export async function SE_LoginLayout() {
+    const t = await getTranslations("Login")
+    return <h1>{t("title")}</h1>
+}
+```
+
+> Never use a `$lang/` folder inside feature directories.
+> Never use a `LANG_` prefix — replaced by `useTranslations` / `getTranslations`.
+
+---
+
+## Docs
+
+- Full documentation: https://nextjs-clean-architecture.vercel.app/
+- llms.txt (summary): https://nextjs-clean-architecture.vercel.app/llms.txt
+- Skills & commands: https://nextjs-clean-architecture.vercel.app/skills

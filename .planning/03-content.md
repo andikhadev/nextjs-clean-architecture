@@ -1,6 +1,6 @@
 # 03 — Astro Starlight: Konten
 
-**Status:** 🔲 Belum dimulai
+**Status:** ✅ Selesai
 **Tujuan:** Menulis seluruh konten dokumentasi dalam MDX — migrasi v1 + konten baru v2.
 Bergantung pada: Step 01 (spec selesai) + Step 02 (Astro sudah running).
 
@@ -9,33 +9,33 @@ Bergantung pada: Step 01 (spec selesai) + Step 02 (Astro sudah running).
 ## Checklist
 
 ### Migrasi dari v1
-- [ ] Introduction
-- [ ] Structure: Root, Feature, Action, Element, Function, API, Library, Registry, Language
+- [x] Introduction
+- [x] Structure: Root, Feature, Action, Element, Function, API, Library, Registry, Language
 
 ### Naming Conventions (tulis ulang, lebih terstruktur)
-- [ ] Overview — kenapa naming convention penting
-- [ ] Folder naming
-- [ ] File naming — semua tipe dengan tabel lengkap
-- [ ] Symbol naming — semua prefix dengan tabel + contoh kode
+- [x] Overview — kenapa naming convention penting
+- [x] Folder naming
+- [x] File naming — semua tipe dengan tabel lengkap
+- [x] Symbol naming — semua prefix dengan tabel + contoh kode
 
 ### Pattern Guide (konten baru)
-- [ ] Overview
-- [ ] Pattern A — Server Fetch
-- [ ] Pattern B — Client Fetch (TanStack Query)
-- [ ] Pattern C — Form Submit (TanStack Form + Zod + Server Action)
-- [ ] Pattern D — URL Search Params
-- [ ] Pattern E — Zustand
-- [ ] Pattern F — shadcn/ui Extension
-- [ ] Pattern G — Library Adapter
-- [ ] Pattern H — i18n dengan next-intl
+- [x] Overview
+- [x] Pattern A — Server Fetch
+- [x] Pattern B — Client Fetch (TanStack Query)
+- [x] Pattern C — Form Submit (TanStack Form + Zod + Server Action)
+- [x] Pattern D — URL Search Params
+- [x] Pattern E — Zustand
+- [x] Pattern F — shadcn/ui Extension
+- [x] Pattern G — Library Adapter
+- [x] Pattern H — i18n dengan next-intl
 
 ### Stack Guide (konten baru)
-- [ ] shadcn/ui — cara setup dan cara extend
-- [ ] Zustand — setup, feature store vs global store
-- [ ] TanStack Query — setup QueryClient, pola penggunaan bersama Server Component
-- [ ] TanStack Form — integrasi dengan Zod dan Server Action
-- [ ] Zod — pola penulisan schema, ZS_ prefix
-- [ ] next-intl — setup, namespace per feature, server vs client usage
+- [x] shadcn/ui — cara setup dan cara extend
+- [x] Zustand — setup, feature store vs global store
+- [x] TanStack Query — setup QueryClient, pola penggunaan bersama Server Component
+- [x] TanStack Form — integrasi dengan Zod dan Server Action
+- [x] Zod — pola penulisan schema, ZS_ prefix
+- [x] next-intl — setup, namespace per feature, server vs client usage
 
 ### AI Workflow (konten baru)
 - [ ] Halaman "Skills & Commands" — daftar skills + commands tersedia
@@ -44,7 +44,7 @@ Bergantung pada: Step 01 (spec selesai) + Step 02 (Astro sudah running).
 - [ ] CTA download di homepage
 
 ### Lainnya
-- [ ] Contributing guide
+- [x] Contributing guide
 - [ ] Changelog v1 → v2
 
 ---
