@@ -74,6 +74,14 @@
 Conventional Commits: <type>(<scope>): <description>
 Types: feat, fix, docs, refactor, chore, test, perf, style
 
+## Example Use Case
+
+Real-world examples showing how multiple patterns combine in one feature.
+
+- Example 1 — Landing Page Bilingual: Pattern A (SE_ server fetch) + F (CE_ shadcn wrapper) + H (getTranslations/useTranslations + language switcher)
+- Example 2 — User Management: Pattern A (SE_ initial fetch) + B (useQuery + QK_ refetch) + C (ACT_ + ZS_ + form) + D (URL search params) + E (useXxxStore modal state) + H (i18n)
+- Example 3 — Form Wizard: Pattern C (per-step ZS_ + ACT_ final submit) + E (useWizardStore for step + data) + F (CE_ shadcn Progress wrapper) + H (i18n)
+
 ## Docs
 
 - Full documentation: https://nextjs-clean-architecture.vercel.app/
