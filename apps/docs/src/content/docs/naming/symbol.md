@@ -1,6 +1,6 @@
 ---
 title: Symbol & Prefix Naming
-description: Referensi lengkap semua prefix simbol dalam Next.js Clean Architecture — ACT_, SE_, CE_, SFN_, CFN_, APIS_, ZS_, I_, IRq_, IRs_, T_, E_, QK_, ROUTE_, dan pola useXxxStore.
+description: Referensi lengkap semua prefix simbol dalam Next.js Clean Architecture — ACT_, SE_, CE_, SFN_, CFN_, APIS_, APIC_, ZS_, I_, IRq_, IRs_, T_, E_, QK_, ROUTE_, dan pola useXxxStore.
 ---
 
 ## Tujuan
@@ -17,7 +17,8 @@ Setiap simbol yang diekspor dari file memiliki prefix yang menunjukkan tipenya s
 | `SFN_` | Server Function | `sfn.[module].ts` | `SFN_SaveSession` |
 | `CFN_` | Client Function | `cfn.[module].ts` | `CFN_ValidateEmail` |
 | `useXxxStore` | Zustand Hook | `[module].store.ts` | `useLoginUiStore` |
-| `APIS_` | API Function (fetch ke backend) | `[resource].ts` | `APIS_Login` |
+| `APIS_` | API Function — server-only (internal API) | `[resource].ts` | `APIS_Login` |
+| `APIC_` | API Function — client-accessible (Route Handler / External API) | `[resource].ts` | `APIC_GetUsers` |
 | `ZS_` | Zod Schema | `[module].schema.ts` | `ZS_LoginForm` |
 | `I_` | Interface umum TypeScript | file `.ts` manapun | `I_UserProfile` |
 | `IRq_` | Interface Request (payload ke API) | `[resource].type.ts` | `IRq_Login` |
@@ -139,20 +140,48 @@ export const useLoginUiStore = create<I_LoginUiStore>((set) => ({
 }))
 ```
 
-### `APIS_` — API Function
+### `APIS_` — API Function (server-only)
 
-Fungsi fetch ke backend API. Disimpan di `api/[feature]/`, bukan di dalam `app/`. Nama setelah `APIS_` mendeskripsikan resource atau aksi.
+Fungsi fetch ke backend API yang **hanya boleh dipanggil dari server-side code** — `SE_`, `ACT_`, atau `SFN_`. Digunakan untuk Internal API yang tidak bisa diakses langsung dari browser. Disimpan di `api/[feature]/`.
 
 ```ts
 // api/auth/login.ts
 export async function APIS_Login(payload: IRq_Login): Promise<IRs_Login> {
-    const res = await fetch("/api/auth/login", {
+    const res = await fetch(process.env.INTERNAL_API_URL + "/auth/login", {
         method: "POST",
+        headers: { Authorization: `Bearer ${process.env.API_SECRET}` },
         body: JSON.stringify(payload),
     })
     return res.json()
 }
 ```
+
+Dipanggil dari: `ACT_SubmitLogin`, `SE_UserList`, `SFN_GetSession` — **tidak boleh** dari `CE_` atau `useQuery`.
+
+### `APIC_` — API Function (client-accessible)
+
+Fungsi fetch ke API yang **bisa dipanggil dari Client Component** — biasanya via TanStack Query. Digunakan untuk Route Handler Next.js atau External API publik yang bisa diakses dari browser. Disimpan di `api/[feature]/`.
+
+```ts
+// api/user/list.ts
+export async function APIC_GetUsers(params: IRq_GetUsers): Promise<IRs_GetUsers> {
+    const qs = new URLSearchParams({
+        search: params.search ?? "",
+        page: String(params.page ?? 1),
+    })
+    const res = await fetch(`/api/users?${qs}`)
+    if (!res.ok) throw new Error("Failed to fetch users")
+    return res.json()
+}
+```
+
+Dipanggil dari: `CE_` via `useQuery` — **tidak wajib** memiliki server-side secret.
+
+| | `APIS_` | `APIC_` |
+|---|---|---|
+| Dipanggil dari | SE_, ACT_, SFN_ | CE_ via TanStack Query |
+| Endpoint | Internal API (tidak bisa diakses internet) | Route Handler / External API publik |
+| Boleh pakai env secret | Ya | Tidak (berjalan di browser) |
 
 ### `ZS_` — Zod Schema
 

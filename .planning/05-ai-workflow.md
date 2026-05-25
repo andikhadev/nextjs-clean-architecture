@@ -60,7 +60,9 @@ Full documentation: https://[domain]/
 - `page.tsx` must only contain `return <SE_FeatureLayout />` — no logic
 - All user-facing strings must use `useTranslations` / `getTranslations` from next-intl
 - Never call external libraries directly — use adapters in `lib/[domain]/`
-- Server Actions must validate with Zod before calling APIS_
+- Server Actions must validate with Zod before calling APIS_ (server-only) or APIC_ (client-accessible)
+- APIS_ can only be called from SE_, ACT_, SFN_ — never from CE_ or useQuery
+- APIC_ is for client-side fetching (CE_ via TanStack Query) — Route Handler or public External API
 - GlobalEmitter is forbidden — use Zustand (transient) or URL params (persistent)
 
 ---
@@ -92,7 +94,8 @@ src/
 | Server Action | `ACT_` | Client Element | `CE_` |
 | Server Element | `SE_` | Client Function | `CFN_` |
 | Server Function | `SFN_` | Zustand hook | `useXxxStore` |
-| API fetch | `APIS_` | Zod schema | `ZS_` |
+| API fetch (server-only) | `APIS_` | API fetch (client-accessible) | `APIC_` |
+| Zod schema | `ZS_` | | |
 | Interface | `I_` | Request interface | `IRq_` |
 | Response interface | `IRs_` | Type alias | `T_` |
 | Enum | `E_` | Query key | `QK_` |

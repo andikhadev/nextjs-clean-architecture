@@ -11,7 +11,7 @@
 - `src/app/[feature]/$element/` — React components (SE_ server, CE_ client)
 - `src/app/[feature]/$function/` — helper functions (SFN_ server, CFN_ client)
 - `src/app/[feature]/$store/` — Zustand stores scoped to this feature
-- `src/api/[feature]/` — fetch wrappers per feature (APIS_ prefix)
+- `src/api/[feature]/` — fetch wrappers per feature (APIS_ server-only, APIC_ client-accessible)
 - `src/i18n/` — next-intl routing + request config
 - `src/lib/[domain]/` — third-party adapters (index.ts interface + [library].ts impl)
 - `src/reg/` — global constants: routes (ROUTE_), query keys (QK_)
@@ -37,7 +37,8 @@
 - CE_ → Client Element (component, "use client")
 - SFN_ → Server Function
 - CFN_ → Client Function
-- APIS_ → API fetch function
+- APIS_ → API fetch function — server-only (internal API, tidak bisa diakses browser)
+- APIC_ → API fetch function — client-accessible (Route Handler / External API publik)
 - use[Name]Store → Zustand store hook
 - ZS_ → Zod schema
 - QK_ → TanStack Query key
@@ -54,14 +55,17 @@
 - Use Zustand only for transient UI state (modals, selections, toggles).
 - GlobalEmitter is forbidden. Use Zustand or URL params instead.
 - Server Actions must validate with Zod before calling APIS_.
+- APIS_ can only be called from SE_, ACT_, SFN_. APIC_ is for CE_ via TanStack Query.
 - All API response types use IRs_ prefix. All request types use IRq_.
+- Unit tests are co-located next to the source file (e.g. client.form.test.tsx).
+- Integration/E2E tests go in $test/ folder inside the feature folder.
 - Never import external libraries directly — use adapters in lib/[domain]/.
 - All user-facing strings use useTranslations (CE_) or getTranslations (SE_/SFN_).
 
 ## Patterns
 
 - Pattern A — Server fetch: page → SE_ → APIS_ → CE_ via props
-- Pattern B — Client fetch: CE_ → useQuery(QK_, APIS_)
+- Pattern B — Client fetch: CE_ → useQuery(QK_, APIC_)
 - Pattern C — Form submit: CE_ form (useForm/TanStack Form) → ACT_ (plain object) → Zod validate → APIS_
 - Pattern D — Cross-component (persistent): useQueryState (nuqs) → page re-render → SE_ baca
 - Pattern E — Cross-component (transient): useXxxStore from $store/ or store/

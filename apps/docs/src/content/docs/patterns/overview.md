@@ -7,7 +7,7 @@ description: 8 pattern data flow untuk Next.js 15+ App Router — kapan pakai ma
 
 Pattern guide ini menjawab satu pertanyaan: **"Untuk kasus X, saya harus pakai cara apa?"**
 
-Setiap pattern mendefinisikan satu alur data yang spesifik. Gunakan tabel di bawah sebagai decision guide, lalu buka halaman detail pattern yang relevan untuk contoh kode lengkap.
+Setiap pattern mendefinisikan satu alur data yang spesifik. Untuk decision guide interaktif berbasis kondisi, lihat **[Choosing the Right Pattern](/patterns/choosing)**. Atau gunakan tabel ringkasan di bawah untuk langsung lompat ke halaman detail pattern yang relevan.
 
 ---
 
@@ -42,7 +42,7 @@ Cocok untuk halaman yang perlu SSR atau data yang tidak berubah tanpa navigasi.
 ### Pattern B — Client Fetch (TanStack Query)
 
 ```
-CE_ component → useQuery(QK_, APIS_) → render
+CE_ component → useQuery(QK_, APIC_) → render
 ```
 
 Data di-fetch di Client Component menggunakan TanStack Query.

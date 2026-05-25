@@ -87,7 +87,8 @@ app/[feature]/
 | Server Action | `ACT_` | Client Element | `CE_` |
 | Server Element | `SE_` | Client Function | `CFN_` |
 | Server Function | `SFN_` | Zustand hook | `useXxxStore` |
-| API fetch | `APIS_` | Zod schema | `ZS_` |
+| API fetch (server-only) | `APIS_` | API fetch (client-accessible) | `APIC_` |
+| Zod schema | `ZS_` | | |
 | Interface | `I_` | Request interface | `IRq_` |
 | Response interface | `IRs_` | Type alias | `T_` |
 | Enum | `E_` | Query key | `QK_` |
@@ -101,6 +102,7 @@ app/[feature]/
 - Search/filter/pagination → URL Search Params
 - Modal/selection/toggle → Zustand store
 - Zod validation wajib ada di Server Action sebelum memanggil `APIS_`
+- `APIS_` hanya boleh dipanggil dari SE_, ACT_, SFN_ — `APIC_` untuk CE_ via TanStack Query
 
 ---
 

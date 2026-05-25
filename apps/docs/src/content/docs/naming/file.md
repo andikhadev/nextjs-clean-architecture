@@ -20,7 +20,8 @@ Tabel berikut adalah referensi lengkap semua tipe file dalam proyek:
 | Client Function | `cfn.[module].ts` | `cfn.validate.ts` | `CFN_` | `app/[feature]/$function/` |
 | Zustand Store | `[module].store.ts` | `ui.store.ts` | `useXxxStore` | `app/[feature]/$store/` atau `store/` |
 | Zod Schema | `[module].schema.ts` | `login.schema.ts` | `ZS_` | `app/[feature]/` |
-| API Function | `[resource].ts` | `login.ts` | `APIS_` | `api/[feature]/` |
+| API Function (server-only) | `[resource].ts` | `login.ts` | `APIS_` | `api/[feature]/` |
+| API Function (client-accessible) | `[resource].ts` | `list.ts` | `APIC_` | `api/[feature]/` |
 | API Types | `[resource].type.ts` | `login.type.ts` | `IRq_`, `IRs_` | `api/[feature]/` |
 | Registry | `[domain].register.ts` | `routes.register.ts` | `ROUTE_`, `QK_` | `reg/` |
 | Lib Adapter | `[library].ts` + `index.ts` | `ioredis.ts` di `lib/cache/` | — | `lib/[domain]/` |
@@ -90,8 +91,11 @@ export const ZS_LoginForm = z.object({
 Dua file ini selalu berpasangan: satu untuk fungsi fetch, satu untuk interface request/response.
 
 ```ts
-// api/auth/login.ts
+// api/auth/login.ts — APIS_: server-only (internal API, tidak bisa diakses dari browser)
 export async function APIS_Login(payload: IRq_Login): Promise<IRs_Login> { ... }
+
+// api/user/list.ts — APIC_: client-accessible (Route Handler atau External API publik)
+export async function APIC_GetUsers(params: IRq_GetUsers): Promise<IRs_GetUsers> { ... }
 
 // api/auth/login.type.ts
 export interface IRq_Login { email: string; password: string }

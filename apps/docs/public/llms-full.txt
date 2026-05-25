@@ -11,7 +11,7 @@
 - `src/app/[feature]/$element/` — React components (SE_ server, CE_ client)
 - `src/app/[feature]/$function/` — helper functions (SFN_ server, CFN_ client)
 - `src/app/[feature]/$store/` — Zustand stores scoped to this feature
-- `src/api/[feature]/` — fetch wrappers per feature (APIS_ prefix)
+- `src/api/[feature]/` — fetch wrappers per feature (APIS_ server-only, APIC_ client-accessible)
 - `src/i18n/` — next-intl routing + request config
 - `src/lib/[domain]/` — third-party adapters (index.ts interface + [library].ts impl)
 - `src/reg/` — global constants: routes (ROUTE_), query keys (QK_)
@@ -68,7 +68,8 @@ reg/
 - CE_ → Client Element ("use client")
 - SFN_ → Server Function (server-only helper)
 - CFN_ → Client Function (client-only helper)
-- APIS_ → API fetch function
+- APIS_ → API fetch function — server-only (SE_, ACT_, SFN_ only)
+- APIC_ → API fetch function — client-accessible (CE_ via TanStack Query)
 - use[Name]Store → Zustand store hook
 - ZS_ → Zod schema
 - QK_ → TanStack Query key constant
@@ -88,7 +89,10 @@ reg/
 - Use Zustand only for transient UI state (modals, selections, toggles).
 - GlobalEmitter is forbidden. Use Zustand or URL params instead.
 - Server Actions must validate with Zod before calling APIS_.
+- APIS_ can only be called from SE_, ACT_, SFN_. APIC_ is for CE_ via TanStack Query.
 - All API response types use IRs_ prefix. All request types use IRq_.
+- Unit tests are co-located next to the source file (e.g. client.form.test.tsx).
+- Integration/E2E tests go in $test/ folder inside the feature folder.
 - Never import external libraries directly — use adapters in lib/[domain]/.
 - All user-facing strings use useTranslations (CE_) or getTranslations (SE_/SFN_).
 - QK_ values must be defined in reg/query-keys.register.ts, not inline.
@@ -97,7 +101,7 @@ reg/
 ## Patterns
 
 - Pattern A — Server fetch: page → SE_ → APIS_ → CE_ via props
-- Pattern B — Client fetch: CE_ → useQuery(QK_, APIS_)
+- Pattern B — Client fetch: CE_ → useQuery(QK_, APIC_)
 - Pattern C — Form submit: CE_ form (useForm/TanStack Form) → ACT_ (plain object) → Zod validate → APIS_
 - Pattern D — Cross-component (persistent): useQueryState (nuqs) → page re-render → SE_ baca
 - Pattern E — Cross-component (transient): useXxxStore from $store/ or store/
@@ -149,7 +153,7 @@ export function CE_UserTable({ data, total }: { data: I_User[], total: number })
 Data needs refresh without navigation, polling, or depends on user interaction.
 
 ```
-CE_ component → useQuery(QK_, APIS_) → render
+CE_ component → useQuery(QK_, APIC_) → render
 ```
 
 ```tsx
@@ -160,14 +164,12 @@ export const QK_UserList = (search: string) => ["user", "list", search]
 "use client"
 import { useQuery } from "@tanstack/react-query"
 import { QK_UserList } from "@/reg/query-keys.register"
-import { APIS_GetUsers } from "@/api/user/list"
+import { APIC_GetUsers } from "@/api/user/list"
 
-export function CE_UserList() {
-    const { search } = useFilterStore()
-
+export function CE_UserList({ search }: { search: string }) {
     const { data, isLoading } = useQuery({
         queryKey: QK_UserList(search),
-        queryFn: () => APIS_GetUsers({ search }),
+        queryFn: () => APIC_GetUsers({ search }),
     })
 
     if (isLoading) return <Skeleton />
@@ -460,6 +462,173 @@ export async function SE_LoginLayout() {
 
 > Never use a `$lang/` folder inside feature directories.
 > Never use a `LANG_` prefix — replaced by `useTranslations` / `getTranslations`.
+
+---
+
+---
+
+## Example Use Case
+
+Real-world examples showing how multiple patterns combine in one feature.
+
+---
+
+### Example 1 — Landing Page Bilingual
+
+Patterns: A (server fetch) + F (shadcn extension) + H (i18n)
+
+```
+app/[locale]/
+├── page.tsx                   → only: return <SE_LandingLayout />
+└── $element/
+    ├── server.layout.tsx      SE_LandingLayout
+    ├── server.hero.tsx        SE_HeroSection — async, APIS_GetActivePromo + getTranslations
+    ├── client.navbar.tsx      CE_Navbar — useTranslations + language switcher
+    └── client.cta-button.tsx  CE_CTAButton — wraps shadcn Button, never modifies it
+api/promo/active.ts            APIS_GetActivePromo → IRs_ActivePromo
+messages/en.json + id.json     namespace "Landing"
+```
+
+```tsx
+// SE_HeroSection — Pattern A + H combined
+export async function SE_HeroSection() {
+    const promo = await APIS_GetActivePromo()   // Pattern A: APIS_ fetch on server
+    const t = await getTranslations("Landing")  // Pattern H: SE_ uses getTranslations
+    return <CE_CTAButton href={promo.ctaUrl}>{t("hero.cta")}</CE_CTAButton>
+}
+
+// CE_Navbar — Pattern H client-side
+"use client"
+export function CE_Navbar() {
+    const t = useTranslations("Landing")        // Pattern H: CE_ uses useTranslations
+    const router = useRouter()
+    // language switcher: router.replace(pathname, { locale: next })
+}
+
+// CE_CTAButton — Pattern F
+"use client"
+export function CE_CTAButton({ href, children }: I_CTAButtonProps) {
+    return <Button asChild className="rounded-full px-8"><a href={href}>{children}</a></Button>
+    // wraps shadcn Button — never touches components/ui/button.tsx
+}
+```
+
+---
+
+### Example 2 — User Management
+
+Patterns: A + B + C + D + E + H
+
+```
+app/user-management/
+├── page.tsx                      → only: return <SE_UserManagementLayout searchParams={params} />
+├── $action/action.create.ts      ACT_CreateUser — "use server", ZS_ validate → APIS_
+├── $element/
+│   ├── server.layout.tsx         SE_UserManagementLayout — async, APIS_GetUsers + getTranslations
+│   ├── client.searchbar.tsx      CE_SearchBar — router.replace(?search=...) Pattern D
+│   ├── client.table.tsx          CE_UserTable — useQuery(QK_UserList) Pattern B + Zustand dispatch
+│   ├── client.create-modal.tsx   CE_CreateModal — useActionState(ACT_CreateUser) Pattern C + Zustand subscribe
+│   └── client.pagination.tsx     CE_Pagination — router.replace(?page=...) Pattern D
+└── $store/ui.store.ts            useUserManagementStore — isModalOpen, selectedId Pattern E
+api/user-management/users.ts      APIS_GetUsers, APIS_CreateUser
+reg/query-keys.register.ts        QK_UserList
+```
+
+```tsx
+// SE_UserManagementLayout — Pattern A: fetch on server, pass to CE_ via props
+export async function SE_UserManagementLayout({ searchParams }) {
+    const data = await APIS_GetUsers({ search: searchParams.search, page: Number(searchParams.page) || 1 })
+    return <CE_UserTable initialData={data} />
+}
+
+// CE_UserTable — Pattern B: useQuery refetches after mutation without navigation
+export function CE_UserTable({ initialData }: { initialData: IRs_UserList }) {
+    const { data } = useQuery({ queryKey: QK_UserList({ search, page }), queryFn: () => APIS_GetUsers(...), initialData })
+    const { setSelectedId, openModal } = useUserManagementStore() // Pattern E: dispatch to Zustand
+}
+
+// ACT_CreateUser — Pattern C: ZS_ validate → APIS_, then invalidate QK_
+"use server"
+export async function ACT_CreateUser(_: unknown, formData: FormData) {
+    const parsed = ZS_CreateUser.safeParse({ name: formData.get("name"), ... })
+    if (!parsed.success) return { error: parsed.error.flatten().fieldErrors }
+    await APIS_CreateUser(parsed.data)
+    revalidateTag("users")
+}
+
+// CE_SearchBar — Pattern D: write to URL, SE_ reads on re-render
+export function CE_SearchBar() {
+    const handleSearch = useDebouncedCallback((term) => {
+        router.replace(`?search=${term}&page=1`)  // SE_ akan re-render dengan data baru
+    }, 300)
+}
+
+// useUserManagementStore — Pattern E: transient state for modal + selected row
+export const useUserManagementStore = create<I_UserManagementStore>((set) => ({
+    isModalOpen: false, selectedId: null,
+    openModal: () => set({ isModalOpen: true }),
+    closeModal: () => set({ isModalOpen: false, selectedId: null }),
+}))
+```
+
+---
+
+### Example 3 — Form Wizard
+
+Patterns: C + E + F + H
+
+```
+app/onboarding/
+├── page.tsx                         → only: return <SE_OnboardingLayout />
+├── $action/action.submit.ts         ACT_SubmitOnboarding — re-validates ZS_ on server
+├── $element/
+│   ├── server.layout.tsx            SE_OnboardingLayout
+│   ├── client.wizard.tsx            CE_Wizard — reads currentStep from useWizardStore
+│   ├── client.step-personal.tsx     CE_StepPersonal — useForm + ZS_PersonalStep + savePersonal()
+│   ├── client.step-company.tsx      CE_StepCompany — useForm + ZS_CompanyStep + saveCompany()
+│   ├── client.step-review.tsx       CE_StepReview — reads store, calls ACT_SubmitOnboarding
+│   └── client.step-indicator.tsx    CE_StepIndicator — wraps shadcn Progress Pattern F
+├── $function/cfn.validate.ts        ZS_PersonalStep, ZS_CompanyStep, T_PersonalStep, T_CompanyStep
+└── $store/wizard.store.ts           useWizardStore — currentStep, personal, company
+```
+
+```ts
+// useWizardStore — Pattern E: single source of truth for all wizard state
+export const useWizardStore = create<I_WizardStore>((set) => ({
+    currentStep: 1, personal: {}, company: {},
+    savePersonal: (data) => set({ personal: data, currentStep: 2 }), // save + advance in one action
+    saveCompany: (data) => set({ company: data, currentStep: 3 }),
+}))
+
+// CE_StepPersonal — Pattern C + E: validate with ZS_, save to store on success
+export function CE_StepPersonal() {
+    const { savePersonal, personal } = useWizardStore()  // pre-fill from store (back navigation)
+    const form = useForm({
+        defaultValues: { fullName: personal.fullName ?? "", ... },
+        onSubmit: async ({ value }) => {
+            const parsed = ZS_PersonalStep.safeParse(value)  // ZS_ prefix — Zod schema
+            if (!parsed.success) return
+            savePersonal(parsed.data)  // Pattern E: advance step via store
+        },
+    })
+}
+
+// ACT_SubmitOnboarding — Pattern C: re-validate on server, never trust client only
+"use server"
+export async function ACT_SubmitOnboarding(payload: { personal: unknown; company: unknown }) {
+    const personal = ZS_PersonalStep.safeParse(payload.personal)  // re-validate
+    const company = ZS_CompanyStep.safeParse(payload.company)
+    if (!personal.success || !company.success) return { error: "Data tidak valid" }
+    await APIS_SubmitOnboarding({ ...personal.data, ...company.data })
+    redirect("/dashboard")
+}
+
+// CE_StepIndicator — Pattern F: extend shadcn Progress without modifying components/ui/
+export function CE_StepIndicator({ current, total }: I_StepIndicatorProps) {
+    const percentage = (current / total) * 100
+    return <Progress value={percentage} />  // shadcn Progress — wrapped, not modified
+}
+```
 
 ---
 

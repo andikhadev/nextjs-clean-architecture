@@ -16,9 +16,12 @@ app/[feature]/
 ├── $element/     React components — prefix SE_ (server) atau CE_ (client)
 ├── $function/    Helper functions — prefix SFN_ (server) atau CFN_ (client)
 ├── $store/       Zustand stores scoped ke feature ini — useXxxStore
+├── $test/        Integration / E2E tests untuk feature ini (opsional)
 ├── layout.tsx    (opsional) layout khusus feature
 └── page.tsx      Entry point — HANYA boleh return <SE_FeatureLayout />
 ```
+
+> Unit test ditulis **co-located** langsung di samping file yang ditest — misalnya `$element/client.form.test.tsx`. Folder `$test/` hanya untuk integration test atau E2E test yang mencakup seluruh flow feature.
 
 ## Aturan `page.tsx`
 
@@ -64,16 +67,19 @@ page.tsx
 // tree — app/login/
 app/login/
 ├── $action/
-│   └── action.submit.ts       → export ACT_SubmitLogin
+│   └── action.submit.ts           → export ACT_SubmitLogin
 ├── $element/
-│   ├── server.layout.tsx      → export SE_LoginLayout
-│   └── client.form.tsx        → export CE_LoginForm
+│   ├── server.layout.tsx          → export SE_LoginLayout
+│   ├── client.form.tsx            → export CE_LoginForm
+│   └── client.form.test.tsx       → unit test untuk CE_LoginForm (co-located)
 ├── $function/
-│   └── sfn.session.ts         → export SFN_SaveSession
+│   └── sfn.session.ts             → export SFN_SaveSession
 ├── $store/
-│   └── ui.store.ts            → export useLoginUiStore
-├── login.schema.ts            → export ZS_LoginForm (Zod schema)
-└── page.tsx                   → return <SE_LoginLayout />
+│   └── ui.store.ts                → export useLoginUiStore
+├── $test/
+│   └── login.integration.test.ts  → integration test flow login end-to-end
+├── login.schema.ts                → export ZS_LoginForm (Zod schema)
+└── page.tsx                       → return <SE_LoginLayout />
 ```
 
 ## Aturan
@@ -82,6 +88,8 @@ app/login/
 |--------|--------|
 | `page.tsx` hanya render | Tidak ada logika, fetch, atau kondisional |
 | `$store/` hanya untuk feature ini | State lintas feature masuk `src/store/` |
+| Unit test co-located | `$element/client.form.test.tsx` di samping `client.form.tsx` |
+| Integration/E2E di `$test/` | Flow yang mencakup lebih dari satu file atau layer |
 | Zod schema di level feature | File `[feature].schema.ts` di root feature folder |
 | Jangan ada subfolder di dalam `$element/` | Semua file langsung di `$element/`, tidak bersarang |
 | Komponen shadcn jangan dimodifikasi | Buat wrapper `CE_` di `$element/` |

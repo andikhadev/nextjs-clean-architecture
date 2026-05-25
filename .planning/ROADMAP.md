@@ -27,6 +27,7 @@ Next.js 15+  (App Router)
 | # | Area | Context File | Status |
 |---|------|-------------|--------|
 | 1 | Convention v2 Spec | [01-convention-spec.md](01-convention-spec.md) | ✅ Selesai |
+| 1a | Convention v2 — Perbaikan Dokumentasi | Perbaikan dari review developer: APIC_, decision guide, testing convention, fix $lang/ | ✅ Selesai |
 | 2 | Astro Starlight — Setup | [02-astro-starlight.md](02-astro-starlight.md) | ✅ Selesai |
 | 3 | Astro Starlight — Konten | [03-content.md](03-content.md) | ✅ Selesai |
 | 4 | llms.txt | [04-llms-txt.md](04-llms-txt.md) | ✅ Selesai |
@@ -45,7 +46,7 @@ Next.js 15+  (App Router)
 | Jika mengubah... | Wajib update juga... |
 |-----------------|---------------------|
 | Folder/file naming | `04-llms-txt.md` (draft llms.txt + llms-full.txt) |
-| Symbol naming / prefix | `04-llms-txt.md`, `05-ai-workflow.md` (CLAUDE.md template + commands) |
+| Symbol naming / prefix | `04-llms-txt.md`, `05-ai-workflow.md` (CLAUDE.md template + commands), `CLAUDE.md` |
 | Pattern baru (A–H, dst) | `03-content.md` (checklist konten), `04-llms-txt.md` |
 | Stack (library baru) | `ROADMAP.md` (Stack Target), `CLAUDE.md`, `04-llms-txt.md` |
 | Key rules | `04-llms-txt.md`, `05-ai-workflow.md` (CLAUDE.md template) |

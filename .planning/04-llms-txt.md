@@ -19,6 +19,13 @@ Bergantung pada: Step 01 (spec selesai).
 > **Sync rule:** Setiap perubahan `01-convention-spec.md` wajib diikuti update `llms.txt`
 > dan `llms-full.txt` sebelum perubahan di-commit. Lihat tabel sinkronisasi di `ROADMAP.md`.
 
+## Perubahan Terakhir
+
+- `APIC_` prefix ditambahkan — API Function client-accessible (Route Handler / External API publik)
+- `APIS_` diklarifikasi sebagai server-only (internal API)
+- Testing convention ditambahkan: unit test co-located, integration/E2E di `$test/`
+- `$lang/` dihapus dari feature folder structure (sudah deprecated sejak v2)
+
 ---
 
 ## Apa itu llms.txt

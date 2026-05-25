@@ -11,6 +11,7 @@ Bergantung pada: Step 01 (spec selesai) + Step 02 (Astro sudah running).
 ### Migrasi dari v1
 - [x] Introduction
 - [x] Structure: Root, Feature, Action, Element, Function, API, Library, Registry, Language
+- [x] Structure: Testing Convention — unit test co-located + $test/ untuk integration/E2E
 
 ### Naming Conventions (tulis ulang, lebih terstruktur)
 - [x] Overview — kenapa naming convention penting
@@ -28,6 +29,7 @@ Bergantung pada: Step 01 (spec selesai) + Step 02 (Astro sudah running).
 - [x] Pattern F — shadcn/ui Extension
 - [x] Pattern G — Library Adapter
 - [x] Pattern H — i18n dengan next-intl
+- [x] Choosing the Right Pattern — decision guide berbasis kondisi dengan link ke tiap pattern
 
 ### Stack Guide (konten baru)
 - [x] shadcn/ui — cara setup dan cara extend

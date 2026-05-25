@@ -57,7 +57,7 @@ app/[feature]/
 ├── $element/     React components — SE_ (server) / CE_ (client) prefix
 ├── $function/    Helper functions — SFN_ (server) / CFN_ (client) prefix
 ├── $store/       Zustand stores untuk feature ini — useXxxStore pattern
-├── $lang/        i18n strings — key-value flat object per locale
+├── $test/        test files feature ini — co-located unit test + integration/e2e
 ├── layout.tsx    (opsional) layout khusus feature
 └── page.tsx      Entry point — hanya render SE_ component, tidak ada logika
 ```
@@ -129,7 +129,8 @@ reg/
 | Server Function | `SFN_` | `SFN_SaveSession` | Hanya jalan di server |
 | Client Function | `CFN_` | `CFN_ValidateForm` | Hanya jalan di client |
 | Zustand Store | `use[Name]Store` | `useFilterStore` | Mengikuti React hook convention |
-| API Function | `APIS_` | `APIS_Login` | API Server call |
+| API Function (server-only) | `APIS_` | `APIS_Login` | Hanya dari SE_, ACT_, SFN_ — internal API |
+| API Function (client-accessible) | `APIC_` | `APIC_GetUsers` | Dari CE_ via TanStack Query — Route Handler / External API publik |
 | Zod Schema | `ZS_` | `ZS_LoginForm` | Zod object schema |
 | Interface | `I_` | `I_ButtonProps` | TypeScript interface umum |
 | Interface Request | `IRq_` | `IRq_Login` | Payload ke API |
@@ -185,7 +186,7 @@ export function CE_UserTable({ data, total }: { data: I_User[], total: number })
 **Kapan:** Data perlu di-refresh tanpa navigasi, ada polling, atau tergantung interaksi user.
 
 ```
-CE_ component → useQuery(QK_, APIS_) → render
+CE_ component → useQuery(QK_, APIC_) → render
 ```
 
 ```tsx
@@ -196,14 +197,12 @@ export const QK_UserList = (search: string) => ["user", "list", search]
 "use client"
 import { useQuery } from "@tanstack/react-query"
 import { QK_UserList } from "@/reg/query-keys.register"
-import { APIS_GetUsers } from "@/api/user/list"
+import { APIC_GetUsers } from "@/api/user/list"
 
-export function CE_UserList() {
-    const { search } = useFilterStore()
-
+export function CE_UserList({ search }: { search: string }) {
     const { data, isLoading } = useQuery({
         queryKey: QK_UserList(search),
-        queryFn: () => APIS_GetUsers({ search }),
+        queryFn: () => APIC_GetUsers({ search }),
     })
 
     if (isLoading) return <Skeleton />

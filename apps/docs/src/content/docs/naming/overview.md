@@ -23,7 +23,8 @@ Semua fungsi, komponen, hook, schema, dan konstanta mengikuti prefix berikut:
 | Server Function | `SFN_` | `SFN_SaveSession` | Helper yang hanya jalan di server |
 | Client Function | `CFN_` | `CFN_ValidateForm` | Helper yang hanya jalan di client |
 | Zustand Store | `use[Name]Store` | `useFilterStore` | Mengikuti React hook convention |
-| API Function | `APIS_` | `APIS_Login` | Fetch ke backend, di `api/` layer |
+| API Function (server-only) | `APIS_` | `APIS_Login` | Fetch ke backend, hanya dari SE_/ACT_/SFN_ |
+| API Function (client-accessible) | `APIC_` | `APIC_GetUsers` | Fetch dari CE_ via TanStack Query |
 | Zod Schema | `ZS_` | `ZS_LoginForm` | Zod object schema |
 | Interface | `I_` | `I_ButtonProps` | TypeScript interface umum |
 | Interface Request | `IRq_` | `IRq_Login` | Payload yang dikirim ke API |
@@ -78,7 +79,9 @@ app/login/
 └── page.tsx                    → export default function LoginPage
 
 api/auth/
-├── login.ts                    → export async function APIS_Login
+├── login.ts                    → export async function APIS_Login  (server-only)
+api/user/
+├── list.ts                     → export async function APIC_GetUsers  (client-accessible)
 └── login.type.ts               → export interface IRq_Login, IRs_Login
 
 reg/

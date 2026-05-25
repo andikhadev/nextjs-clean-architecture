@@ -1,6 +1,6 @@
 ---
 title: "Pattern B — Client Fetch (TanStack Query)"
-description: Fetch data di Client Component menggunakan TanStack Query untuk data yang perlu di-refresh, dipolling, atau bereaksi terhadap interaksi user.
+description: Fetch data di Client Component menggunakan TanStack Query dan APIC_ function untuk data yang perlu di-refresh, dipolling, atau bereaksi terhadap interaksi user.
 ---
 
 ## Tujuan
@@ -13,8 +13,8 @@ Pattern B digunakan ketika data tidak cukup hanya di-fetch sekali saat render �
 
 ```mermaid
 flowchart LR
-    A["CE_Component"] --> B["useQuery(QK_, APIS_)"]
-    B --> C["APIS_GetData()"]
+    A["CE_Component"] --> B["useQuery(QK_, APIC_)"]
+    B --> C["APIC_GetData()"]
     C --> D["TanStack Cache"]
     D --> A
     E["useMutation / revalidate"] --> D
@@ -26,7 +26,7 @@ flowchart LR
 |---------|------|-------|
 | 1 | `reg/query-keys.register.ts` | Definisikan `QK_` dengan semua variabel dependen |
 | 2 | `CE_` component | Panggil `useQuery({ queryKey: QK_(...), queryFn })` |
-| 3 | `APIS_` function | HTTP fetch ke backend |
+| 3 | `APIC_` function | HTTP fetch ke Route Handler atau External API publik |
 | 4 | TanStack Cache | Simpan hasil, kelola stale/fresh, trigger refetch |
 
 ---
@@ -35,7 +35,7 @@ flowchart LR
 
 1. **`queryKey` selalu menggunakan `QK_` dari registry** — jangan tulis raw array di komponen.
 2. **`QK_` harus menyertakan semua variabel yang mempengaruhi hasil query** — jika `search` berubah, queryKey harus berubah sehingga cache terpisah.
-3. **`queryFn` harus memanggil fungsi `APIS_`** — bukan fetch inline.
+3. **`queryFn` harus memanggil fungsi `APIC_`** — bukan fetch inline.
 4. **Set `staleTime` sesuai volatilitas data** — data statis bisa pakai `Infinity`, data dinamis 30–60 detik.
 5. **Invalidasi setelah mutasi** dengan `queryClient.invalidateQueries({ queryKey: QK_(...) })`.
 6. **Gunakan `prefetchQuery` di Server Component** untuk pre-populate cache sebelum halaman dikirim ke client — menghilangkan loading state awal.
@@ -62,7 +62,7 @@ reg/
 └── query-keys.register.ts     QK_UserList
 
 api/user/
-├── list.ts                    APIS_GetUsers
+├── list.ts                    APIC_GetUsers
 └── list.type.ts               IRq_GetUsers, IRs_GetUsers
 ```
 
@@ -82,7 +82,7 @@ export const QK_UserListBase = () => ["user", "list"] as const
 ```ts
 import type { IRq_GetUsers, IRs_GetUsers } from "./list.type"
 
-export async function APIS_GetUsers(params: IRq_GetUsers): Promise<IRs_GetUsers> {
+export async function APIC_GetUsers(params: IRq_GetUsers): Promise<IRs_GetUsers> {
     const qs = new URLSearchParams({
         search: params.search ?? "",
         page: String(params.page ?? 1),
@@ -100,7 +100,7 @@ export async function APIS_GetUsers(params: IRq_GetUsers): Promise<IRs_GetUsers>
 
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { QK_UserList, QK_UserListBase } from "@/reg/query-keys.register"
-import { APIS_GetUsers } from "@/api/user/list"
+import { APIC_GetUsers } from "@/api/user/list"
 import { ACT_DeleteUser } from "../$action/action.delete"
 
 interface I_Props {
@@ -113,7 +113,7 @@ export function CE_UserList({ search, page }: I_Props) {
 
     const { data, isLoading, isError } = useQuery({
         queryKey: QK_UserList(search, page),
-        queryFn: () => APIS_GetUsers({ search, page }),
+        queryFn: () => APIC_GetUsers({ search, page }),
         staleTime: 30_000, // 30 detik
     })
 
@@ -163,7 +163,7 @@ function UserListSkeleton() {
 // $element/server.layout.tsx
 import { dehydrate, HydrationBoundary, QueryClient } from "@tanstack/react-query"
 import { QK_UserList } from "@/reg/query-keys.register"
-import { APIS_GetUsers } from "@/api/user/list"
+import { APIC_GetUsers } from "@/api/user/list"
 import { CE_UserList } from "./client.userlist"
 
 export async function SE_UserListLayout({
@@ -177,7 +177,7 @@ export async function SE_UserListLayout({
 
     await queryClient.prefetchQuery({
         queryKey: QK_UserList(search, page),
-        queryFn: () => APIS_GetUsers({ search, page }),
+        queryFn: () => APIC_GetUsers({ search, page }),
         staleTime: 30_000,
     })
 
