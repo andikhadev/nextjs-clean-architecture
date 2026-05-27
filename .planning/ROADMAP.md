@@ -17,6 +17,7 @@ Next.js 15+  (App Router)
 ├── Server State  TanStack Query
 ├── Forms         TanStack Form + Zod
 ├── i18n          next-intl
+├── API Mocking   MSW (Mock Service Worker)
 └── Language      TypeScript strict
 ```
 
@@ -28,6 +29,7 @@ Next.js 15+  (App Router)
 |---|------|-------------|--------|
 | 1 | Convention v2 Spec | [01-convention-spec.md](01-convention-spec.md) | ✅ Selesai |
 | 1a | Convention v2 — Perbaikan Dokumentasi | Perbaikan dari review developer: APIC_, decision guide, testing convention, fix $lang/ | ✅ Selesai |
+| 1b | Convention v2 — Pattern I: API Mocking (MSW) | Pattern baru: EP_ registry, mock-handler co-located, src/mocks/ wiring. Stack page MSW + update user-management example | ✅ Selesai |
 | 2 | Astro Starlight — Setup | [02-astro-starlight.md](02-astro-starlight.md) | ✅ Selesai |
 | 3 | Astro Starlight — Konten | [03-content.md](03-content.md) | ✅ Selesai |
 | 4 | llms.txt | [04-llms-txt.md](04-llms-txt.md) | ✅ Selesai |
@@ -50,6 +52,7 @@ Next.js 15+  (App Router)
 | Pattern baru (A–H, dst) | `03-content.md` (checklist konten), `04-llms-txt.md` |
 | Stack (library baru) | `ROADMAP.md` (Stack Target), `CLAUDE.md`, `04-llms-txt.md` |
 | Key rules | `04-llms-txt.md`, `05-ai-workflow.md` (CLAUDE.md template) |
+| Pattern I / EP_ / mock-handler | `01-convention-spec.md` (Pattern I section + naming tables), `CLAUDE.md` (Quick Reference) |
 
 ---
 
@@ -67,6 +70,10 @@ Next.js 15+  (App Router)
 | Skills distribution | skills.sh (utama) + GitHub Releases (fallback) | Mudah di-install; fallback tanpa dependency eksternal |
 | Git commit style | Conventional Commits | Tooling ecosystem luas (commitlint, changelog gen) |
 | Library integration | Adapter pattern di `lib/[domain]/` | Ganti library = ubah satu file |
+| API Mocking | MSW (Mock Service Worker) | Intercept di network layer — kode produksi tidak berubah |
+| Endpoint path registry | `EP_` prefix di `[feature].endpoint.ts` | Single source of truth path — dipakai bersama `APIS_`/`APIC_` dan mock handler |
+| Mock handler location | Co-located di `api/[feature]/` sebagai `[resource].mock-handler.ts` | 1:1 dengan file API — ketika path berubah, handler ada di sebelahnya |
+| MSW activation | `NEXT_PUBLIC_API_MOCKING=enabled` (dev) + `setupServer` (testing) | Tidak pernah aktif di production — guard via env variable |
 
 ---
 

@@ -28,6 +28,7 @@ sebagai fondasi dari dokumentasi dan Claude Skills.
 - [x] Pattern F — shadcn/ui extension
 - [x] Pattern G — Library abstraction (Adapter)
 - [x] Pattern H — i18n dengan next-intl
+- [x] Pattern I — API Mocking (MSW + EP_ endpoint registry)
 
 ---
 
@@ -69,10 +70,24 @@ app/[feature]/
 ```
 api/
 ├── [feature]/
-│   ├── [resource].ts        fungsi fetch utama
-│   └── [resource].type.ts   IRq_ dan IRs_ interfaces
-└── common.ts                shared headers, base fetcher, error handler
+│   ├── [feature].endpoint.ts    EP_ — path constants (opsional, untuk Pattern I)
+│   ├── [resource].ts            fungsi fetch utama — APIS_ atau APIC_
+│   ├── [resource].type.ts       IRq_ dan IRs_ interfaces
+│   └── [resource].mock-handler.ts  MSW handler (opsional, untuk Pattern I)
+└── common.ts                    shared headers, base fetcher, error handler
 ```
+
+### MSW Wiring
+
+```
+src/mocks/
+├── browser.ts    setupWorker — aktivasi di Next.js client (development)
+├── node.ts       setupServer — aktivasi di testing (Vitest/Jest)
+└── index.ts      kumpulkan semua handler + export initMocks()
+```
+
+> `src/mocks/` hanya berisi setup dan import — bukan definisi handler.
+> Handler didefinisikan di `api/[feature]/[resource].mock-handler.ts`.
 
 ### Lib
 
@@ -116,6 +131,8 @@ reg/
 | Zod Schema | `[module].schema.ts` | `login.schema.ts` |
 | API | `[resource].ts` | `login.ts` |
 | API Types | `[resource].type.ts` | `login.type.ts` |
+| Endpoint Path Registry | `[feature].endpoint.ts` | `user.endpoint.ts` |
+| MSW Mock Handler | `[resource].mock-handler.ts` | `users-list.mock-handler.ts` |
 | Registry | `[domain].register.ts` | `routes.register.ts` |
 | i18n messages | `[locale].json` | `id.json`, `en.json` — di `messages/` root |
 
@@ -139,6 +156,7 @@ reg/
 | Enum | `E_` | `E_UserRole` | TypeScript enum |
 | Query Key | `QK_` | `QK_UserList` | TanStack Query key constant |
 | Route Constant | `ROUTE_` | `ROUTE_Dashboard` | Path string constant |
+| Endpoint Path Registry | `EP_` | `EP_User` | Path constants API, di `[feature].endpoint.ts` |
 | i18n hook | `useTranslations` / `getTranslations` | `useTranslations("Login")` | next-intl |
 
 ### Folder Naming
@@ -472,6 +490,76 @@ export async function SE_LoginLayout() {
 
 > `$lang/` folder di feature **tidak digunakan** — semua string ada di `messages/[locale].json`.
 > `LANG_` prefix dihapus dari convention — diganti `useTranslations` / `getTranslations`.
+
+---
+
+### Pattern I — API Mocking (MSW)
+
+**Kapan:** API contract sudah disepakati tetapi backend belum siap, atau untuk isolasi frontend dari backend saat testing.
+
+**Alur:**
+```
+EP_[Feature] (path constants)
+    ↓                    ↓
+APIS_/APIC_        mock-handler.ts
+(real fetch)       (MSW handler)
+    ↓                    ↓
+Production         Dev / Testing
+(env off)         (env enabled / setupServer)
+```
+
+**Aturan:**
+- `EP_` adalah single source of truth path API — tidak ada string path di tempat lain
+- `mock-handler.ts` selalu import path dari `EP_`, tidak pernah hardcode
+- Response mock harus sesuai shape `IRs_` yang sudah didefinisikan
+- `src/mocks/` hanya berisi wiring — bukan definisi handler
+- Tidak pernah aktif di production — guard via `NEXT_PUBLIC_API_MOCKING`
+- Hapus mock handler setelah integrasi backend nyata selesai
+
+**Contoh:**
+```ts
+// api/user/user.endpoint.ts
+export const EP_User = {
+    list: "/api/users",
+    detail: (id: string) => `/api/users/${id}`,
+    create: "/api/users",
+}
+
+// api/user/user-list.mock-handler.ts
+import { http, HttpResponse } from "msw"
+import { EP_User } from "./user.endpoint"
+import type { IRs_UserList } from "./user-list.type"
+
+export const userListHandler = http.get(EP_User.list, () =>
+    HttpResponse.json<IRs_UserList>({ items: [...], total: 2 })
+)
+
+// src/mocks/index.ts
+import { userListHandler } from "@/api/user/user-list.mock-handler"
+export const handlers = [userListHandler]
+export async function initMocks() {
+    if (typeof window === "undefined") return
+    const { worker } = await import("./browser")
+    return worker.start({ onUnhandledRequest: "bypass" })
+}
+```
+
+**Aktivasi:**
+```ts
+// app/layout.tsx — development
+if (process.env.NEXT_PUBLIC_API_MOCKING === "enabled") {
+    const { initMocks } = await import("@/mocks")
+    await initMocks()
+}
+
+// vitest.setup.ts — testing
+import { server } from "@/mocks/node"
+beforeAll(() => server.listen())
+afterEach(() => server.resetHandlers())
+afterAll(() => server.close())
+```
+
+> Dokumentasi lengkap: [Pattern I — API Mocking](/patterns/api-mocking), [Stack — MSW](/stack/msw)
 
 ---
 

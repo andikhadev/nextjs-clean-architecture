@@ -29,6 +29,7 @@ Bergantung pada: Step 01 (spec selesai) + Step 02 (Astro sudah running).
 - [x] Pattern F — shadcn/ui Extension
 - [x] Pattern G — Library Adapter
 - [x] Pattern H — i18n dengan next-intl
+- [x] Pattern I — API Mocking (MSW + EP_ endpoint registry)
 - [x] Choosing the Right Pattern — decision guide berbasis kondisi dengan link ke tiap pattern
 
 ### Stack Guide (konten baru)
@@ -38,6 +39,7 @@ Bergantung pada: Step 01 (spec selesai) + Step 02 (Astro sudah running).
 - [x] TanStack Form — integrasi dengan Zod dan Server Action
 - [x] Zod — pola penulisan schema, ZS_ prefix
 - [x] next-intl — setup, namespace per feature, server vs client usage
+- [x] MSW — setup, EP_ endpoint registry, dev/test activation, mock-handler convention
 
 ### Example Use Case (konten baru)
 - [x] Contoh 1 — Landing Page Bilingual (Pattern A, F, H) — `examples/landing-page.mdx`
