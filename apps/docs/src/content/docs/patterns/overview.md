@@ -1,6 +1,6 @@
 ---
 title: Pattern Guide
-description: 8 pattern data flow untuk Next.js 15+ App Router — kapan pakai mana.
+description: 10 pattern untuk Next.js 15+ App Router — data flow, state, UI, mocking, dan testing.
 ---
 
 ## Tujuan
@@ -24,6 +24,7 @@ Setiap pattern mendefinisikan satu alur data yang spesifik. Untuk decision guide
 | **G** | Library Adapter | Integrasi ke library eksternal yang bisa diganti (Redis, S3, email, dll.) |
 | **H** | i18n dengan next-intl | Semua teks yang tampil ke user — label, pesan error, placeholder |
 | **I** | API Mocking (MSW) | API contract sudah disepakati tapi backend belum siap, atau butuh isolasi di testing |
+| **J** | Testing Convention | Menulis test di semua layer — unit, component, integration, E2E |
 
 ---
 
@@ -126,6 +127,20 @@ EP_[Feature] (path constants)
 ```
 
 `EP_` adalah single source of truth untuk path API. Fungsi fetch dan mock handler import dari `EP_` yang sama — tidak ada duplikasi path.
+
+---
+
+### Pattern J — Testing Convention
+
+```
+CFN_/SFN_/ZS_  → unit test co-located        (Vitest)
+ACT_           → unit test as pure function   (Vitest + vi.mock)
+CE_            → component test co-located    (Vitest + RTL)
+multi-layer    → integration test di $test/   (Vitest + MSW)
+SE_, page.tsx  → E2E di /e2e/                 (Playwright)
+```
+
+Setiap layer punya jenis test yang sesuai. Server Actions di-test langsung sebagai fungsi biasa dengan mock `next/headers` dan `next/navigation`. Server Components tidak di-unit-test — cukup E2E.
 
 ---
 

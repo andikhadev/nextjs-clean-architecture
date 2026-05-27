@@ -145,6 +145,46 @@ Cocok untuk: sprint paralel frontend-backend, integration test yang tidak bergan
 
 ---
 
+## Testing
+
+### Butuh menulis test untuk kode di feature ini?
+
+Gunakan [Pattern J — Testing Convention](/patterns/testing).
+
+**→ Satu fungsi atau satu komponen (scope kecil)**
+
+Co-located test di samping file sumber:
+
+```
+cfn.validate.ts          → cfn.validate.test.ts        (Vitest)
+client.form.tsx          → client.form.test.tsx         (Vitest + RTL)
+action.submit.ts         → action.submit.test.ts        (Vitest + vi.mock)
+```
+
+---
+
+**→ Beberapa layer dalam satu feature (scope lebih luas)**
+
+Integration test di `$test/` dengan MSW untuk mock API:
+
+```
+$test/submit-flow.integration.test.ts    (Vitest + MSW)
+```
+
+---
+
+**→ Full user journey di browser (verifikasi SE_ dan page.tsx)**
+
+E2E test di `/e2e/[feature]/` dengan Playwright:
+
+```
+e2e/[feature]/[feature].e2e.ts    (Playwright)
+```
+
+> **Pilih berdasarkan layer:** Server Actions → unit test (pure function + vi.mock). Client Element → component test (RTL). Server Element → E2E saja, tidak perlu unit test.
+
+---
+
 ## Kombinasi Pattern
 
 Pattern-pattern di atas bisa dikombinasikan dalam satu feature. Contoh halaman **User Management dengan search dan modal**:
