@@ -21,8 +21,8 @@ dan di-bookmark. State modal (buka/tutup) disimpan di Zustand.
 |---------|----------------------|
 | [Pattern A — Server Fetch](/patterns/server-fetch) | `SE_UserManagementLayout` fetch initial list saat render |
 | [Pattern B — Client Fetch](/patterns/client-fetch) | `CE_UserTable` refetch otomatis setelah create/delete |
-| [Pattern C — Form Submit](/patterns/form-submit) | `CE_CreateModal` — TanStack Form + `ZS_CreateUser` + `ACT_CreateUser` |
-| [Pattern D — URL Search Params](/patterns/url-params) | `CE_SearchBar` + `CE_Pagination` — search dan page di URL |
+| [Pattern C — Form Submit](/patterns/form-submit) | `CE_CreateModal` — TanStack Form + `zodValidator` + `ACT_CreateUser` |
+| [Pattern D — URL Search Params](/patterns/url-params) | `CE_SearchBar` + `CE_Pagination` — search dan page di URL via nuqs |
 | [Pattern E — Zustand](/patterns/zustand) | `useUserManagementStore` — state modal dan selected user |
 | [Pattern H — i18n](/patterns/i18n) | Label tabel, placeholder, pesan error via namespace `"UserManagement"` |
 
@@ -137,7 +137,7 @@ export const QK_UserList = (params: { search?: string; page?: number }) =>
 "use client"
 
 import { useQuery } from "@tanstack/react-query"
-import { useSearchParams } from "next/navigation"
+import { useQueryState, parseAsString, parseAsInteger } from "nuqs"
 import { QK_UserList } from "@/reg/query-keys.register"
 import { APIS_GetUsers } from "@/api/user-management/users"
 import { useUserManagementStore } from "../$store/ui.store"
@@ -151,9 +151,9 @@ interface I_Props {
 export function CE_UserTable({ initialData }: I_Props) {
 //              ↑ CE_ prefix — Client Component
 
-    const searchParams = useSearchParams()
-    const search = searchParams.get("search") ?? ""
-    const page = Number(searchParams.get("page")) || 1
+    const [search] = useQueryState("search", parseAsString.withDefault(""))
+    const [page] = useQueryState("page", parseAsInteger.withDefault(1))
+//  ↑ Baca dari URL via nuqs — konsisten dengan CE_SearchBar dan CE_Pagination
 
     const { data } = useQuery({
         queryKey: QK_UserList({ search, page }),
@@ -202,27 +202,24 @@ export function CE_UserTable({ initialData }: I_Props) {
 // app/user-management/$action/action.create.ts
 "use server"
 
-import { revalidateTag } from "next/cache"
 import { z } from "zod"
 import { APIS_CreateUser } from "@/api/user-management/users"
 
-const ZS_CreateUser = z.object({
-//     ↑ ZS_ prefix — Zod schema, validasi wajib sebelum APIS_
+export const ZS_CreateUser = z.object({
+//     ↑ ZS_ prefix — diexport agar bisa dipakai di client untuk validasi form
     name: z.string().min(2),
     email: z.string().email(),
     role: z.string().min(1),
 })
 
-export async function ACT_CreateUser(_: unknown, formData: FormData) {
+type T_CreateUserInput = z.infer<typeof ZS_CreateUser>
+
+export async function ACT_CreateUser(data: T_CreateUserInput) {
 //                    ↑ ACT_ prefix — Server Action, wajib "use server"
+//                    Menerima typed object langsung — TanStack Form yang handle state-nya
 
-    const raw = {
-        name: formData.get("name"),
-        email: formData.get("email"),
-        role: formData.get("role"),
-    }
-
-    const parsed = ZS_CreateUser.safeParse(raw)
+    const parsed = ZS_CreateUser.safeParse(data)
+//  ↑ Validasi tetap wajib di server — tidak percaya data dari client
     if (!parsed.success) {
         return { error: parsed.error.flatten().fieldErrors }
     }
@@ -230,7 +227,6 @@ export async function ACT_CreateUser(_: unknown, formData: FormData) {
     const result = await APIS_CreateUser(parsed.data)
     if (!result.ok) return { error: { _root: [result.message] } }
 
-    revalidateTag("users")
     return { success: true }
 }
 ```
@@ -239,9 +235,10 @@ export async function ACT_CreateUser(_: unknown, formData: FormData) {
 // app/user-management/$element/client.create-modal.tsx
 "use client"
 
-import { useActionState } from "react"
+import { useForm } from "@tanstack/react-form"
+import { zodValidator } from "@tanstack/zod-form-adapter"
 import { useQueryClient } from "@tanstack/react-query"
-import { ACT_CreateUser } from "../$action/action.create"
+import { ACT_CreateUser, ZS_CreateUser } from "../$action/action.create"
 import { useUserManagementStore } from "../$store/ui.store"
 //                                    ↑ Pattern E — baca isModalOpen dari store
 import { useTranslations } from "next-intl"
@@ -253,24 +250,83 @@ export function CE_CreateModal() {
     const { isModalOpen, closeModal } = useUserManagementStore()
     const queryClient = useQueryClient()
 
-    const [state, formAction, isPending] = useActionState(ACT_CreateUser, null)
-
-    async function handleSuccess() {
-        await queryClient.invalidateQueries({ queryKey: ["user-management", "list"] })
-//      ↑ invalidate QK_UserList → CE_UserTable refetch otomatis (Pattern B)
-        closeModal()
-    }
+    const form = useForm({
+        defaultValues: { name: "", email: "", role: "" },
+        validatorAdapter: zodValidator(),
+//      ↑ Pakai ZS_CreateUser yang sama di client — satu sumber validasi
+        onSubmit: async ({ value }) => {
+            const result = await ACT_CreateUser(value)
+//          ↑ ACT_ dipanggil langsung — bukan via formAction
+            if (result?.success) {
+                await queryClient.invalidateQueries({ queryKey: ["user-management", "list"] })
+//              ↑ invalidate QK_UserList → CE_UserTable refetch otomatis (Pattern B)
+                closeModal()
+                form.reset()
+            }
+        },
+    })
 
     if (!isModalOpen) return null
 
     return (
         <dialog open>
-            <form action={formAction}>
-                <input name="name" placeholder={t("form.namePlaceholder")} />
-                <input name="email" placeholder={t("form.emailPlaceholder")} />
-                {state?.error?._root && <p>{state.error._root[0]}</p>}
-                <button disabled={isPending}>{t("form.submit")}</button>
-                <button type="button" onClick={closeModal}>{t("form.cancel")}</button>
+            <form
+                onSubmit={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    form.handleSubmit()
+                }}
+            >
+                <form.Field
+                    name="name"
+                    validators={{ onChange: ZS_CreateUser.shape.name }}
+                >
+                    {(field) => (
+                        <div>
+                            <input
+                                value={field.state.value}
+                                onChange={(e) => field.handleChange(e.target.value)}
+                                onBlur={field.handleBlur}
+                                placeholder={t("form.namePlaceholder")}
+                            />
+                            {field.state.meta.isTouched && field.state.meta.errors.length > 0 && (
+                                <p>{field.state.meta.errors[0]}</p>
+                            )}
+                        </div>
+                    )}
+                </form.Field>
+
+                <form.Field
+                    name="email"
+                    validators={{ onChange: ZS_CreateUser.shape.email }}
+                >
+                    {(field) => (
+                        <div>
+                            <input
+                                value={field.state.value}
+                                onChange={(e) => field.handleChange(e.target.value)}
+                                onBlur={field.handleBlur}
+                                placeholder={t("form.emailPlaceholder")}
+                            />
+                            {field.state.meta.isTouched && field.state.meta.errors.length > 0 && (
+                                <p>{field.state.meta.errors[0]}</p>
+                            )}
+                        </div>
+                    )}
+                </form.Field>
+
+                <form.Subscribe
+                    selector={(state) => ({ canSubmit: state.canSubmit, isSubmitting: state.isSubmitting })}
+                >
+                    {({ canSubmit, isSubmitting }) => (
+                        <>
+                            <button type="submit" disabled={!canSubmit}>
+                                {isSubmitting ? "..." : t("form.submit")}
+                            </button>
+                            <button type="button" onClick={closeModal}>{t("form.cancel")}</button>
+                        </>
+                    )}
+                </form.Subscribe>
             </form>
         </dialog>
     )
@@ -288,32 +344,78 @@ export function CE_CreateModal() {
 // app/user-management/$element/client.searchbar.tsx
 "use client"
 
-import { useRouter, useSearchParams } from "next/navigation"
-import { useDebouncedCallback } from "use-debounce"
+import { useQueryStates, parseAsString, parseAsInteger } from "nuqs"
 import { useTranslations } from "next-intl"
 
 export function CE_SearchBar() {
 //              ↑ CE_ prefix
 
     const t = useTranslations("UserManagement")
-    const router = useRouter()
-    const searchParams = useSearchParams()
 
-    const handleSearch = useDebouncedCallback((term: string) => {
-        const params = new URLSearchParams(searchParams)
-        term ? params.set("search", term) : params.delete("search")
-        params.set("page", "1")
-//      Reset ke page 1 setiap kali search berubah
-        router.replace(`?${params.toString()}`)
-//      router.replace — tidak menambah history entry baru
-    }, 300)
+    const [{ search }, setParams] = useQueryStates(
+        {
+            search: parseAsString.withDefault(""),
+            page: parseAsInteger.withDefault(1),
+        },
+        { shallow: false }
+//      ↑ shallow: false — trigger Server Component re-render saat params berubah
+    )
 
     return (
         <input
-            defaultValue={searchParams.get("search") ?? ""}
-            onChange={(e) => handleSearch(e.target.value)}
+            value={search}
+            onChange={(e) =>
+                setParams({
+                    search: e.target.value || null,
+                    page: 1,
+//                  ↑ Reset ke page 1 setiap kali search berubah
+                }, { throttleMs: 300 })
+//              ↑ throttleMs — debounce URL update, tidak spam history
+            }
             placeholder={t("searchPlaceholder")}
         />
+    )
+}
+```
+
+```tsx
+// app/user-management/$element/client.pagination.tsx
+"use client"
+
+import { useQueryState, parseAsInteger } from "nuqs"
+import { useTranslations } from "next-intl"
+
+const PAGE_SIZE = 10
+
+interface I_Props {
+    total: number
+}
+
+export function CE_Pagination({ total }: I_Props) {
+//              ↑ CE_ prefix
+
+    const t = useTranslations("UserManagement")
+
+    const [page, setPage] = useQueryState(
+        "page",
+        parseAsInteger
+            .withDefault(1)
+            .withOptions({ shallow: false })
+//          ↑ shallow: false — trigger Server Component re-render
+    )
+
+    const totalPages = Math.ceil(total / PAGE_SIZE)
+
+    return (
+        <div>
+            <button disabled={page <= 1} onClick={() => setPage(page - 1)}>
+                {t("pagination.prev")}
+            </button>
+            <span>{page} / {totalPages}</span>
+            <button disabled={page >= totalPages} onClick={() => setPage(page + 1)}>
+                {t("pagination.next")}
+            </button>
+        </div>
     )
 }
 ```
@@ -420,6 +522,8 @@ flowchart TD
 | `IRq_CreateUser`, `IRs_UserList` | `IRq_` / `IRs_` prefix | Interface request/response API |
 | `useUserManagementStore` | `useXxxStore` pattern | Zustand store — scoped ke feature |
 | `I_UserManagementStore`, `I_Props` | `I_` prefix | TypeScript interface |
+| `useForm`, `form.Field`, `form.Subscribe` | TanStack Form | Form state di client — bukan `useActionState` |
+| `useQueryState`, `useQueryStates` | nuqs | URL Search Params — bukan `useSearchParams` + `router.replace` manual |
 | `action.create.ts` | `action.[sub].ts` | File naming Server Action |
 | `server.layout.tsx` | `server.[module].tsx` | File naming Server Element |
 | `client.table.tsx` | `client.[module].tsx` | File naming Client Element |
