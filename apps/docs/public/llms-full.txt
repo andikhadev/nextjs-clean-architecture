@@ -11,6 +11,7 @@
 - `src/app/[feature]/$element/` — React components (SE_ server, CE_ client)
 - `src/app/[feature]/$function/` — helper functions (SFN_ server, CFN_ client)
 - `src/app/[feature]/$store/` — Zustand stores scoped to this feature
+- `src/app/[feature]/$test/` — integration tests spanning multiple layers (Pattern J)
 - `src/api/[feature]/` — fetch wrappers per feature (APIS_ server-only, APIC_ client-accessible)
 - `src/api/[feature]/[feature].endpoint.ts` — EP_ path constants, shared by fetch functions and mock handlers (optional, Pattern I)
 - `src/api/[feature]/[resource].mock-handler.ts` — MSW handler co-located with API file (optional, Pattern I)
@@ -108,8 +109,11 @@ reg/
 - Server Actions must validate with Zod before calling APIS_.
 - APIS_ can only be called from SE_, ACT_, SFN_. APIC_ is for CE_ via TanStack Query.
 - All API response types use IRs_ prefix. All request types use IRq_.
-- Unit tests are co-located next to the source file (e.g. client.form.test.tsx).
-- Integration/E2E tests go in $test/ folder inside the feature folder.
+- Unit/component tests are co-located next to the source file (e.g. client.form.test.tsx). Tools: Vitest + RTL.
+- Integration tests (multi-layer) go in $test/ inside the feature folder. Tools: Vitest + MSW.
+- E2E tests go in /e2e/[feature]/ at project root. Tool: Playwright.
+- Server Actions are unit-tested as pure functions — import directly, mock next/headers and next/navigation via vi.mock.
+- SE_ and page.tsx are not unit-tested — covered by E2E only.
 - Never import external libraries directly — use adapters in lib/[domain]/.
 - All user-facing strings use useTranslations (CE_) or getTranslations (SE_/SFN_).
 - QK_ values must be defined in reg/query-keys.register.ts, not inline.
@@ -128,6 +132,7 @@ reg/
 - Pattern G — Library adapter: lib/[domain]/index.ts (interface) + lib/[domain]/[library].ts (impl)
 - Pattern H — i18n: messages/[locale].json namespaced by feature; useTranslations/getTranslations
 - Pattern I — API Mocking (MSW): EP_[Feature] (path registry) → APIS_/APIC_ (prod) + mock-handler.ts (dev/test); initMocksClient() via instrumentation-client.ts (primary) + layout.tsx (fallback, singleton guard); initMocksServer() via instrumentation.ts; logging via attachLogger()
+- Pattern J — Testing: CFN_/SFN_/ZS_ → unit test (Vitest); ACT_ → unit test as pure function (vi.mock next/headers + next/navigation); CE_ → component test (Vitest + RTL); multi-layer → integration test in $test/ (Vitest + MSW); SE_/page.tsx → E2E only (Playwright in /e2e/)
 
 ## Git Commits
 
@@ -589,6 +594,95 @@ afterAll(() => server.close())
 ```
 
 > To override a handler in a specific test: `server.use(http.get(EP_User.list, () => HttpResponse.json(..., { status: 500 })))`
+
+---
+
+### Pattern J — Testing Convention
+
+Layer → test type mapping:
+
+| Layer | Test Type | Tools |
+|-------|-----------|-------|
+| CFN_, SFN_, ZS_ | Unit test | Vitest |
+| ACT_ | Unit test as pure function | Vitest + vi.mock |
+| CE_ | Component test | Vitest + RTL |
+| APIS_, APIC_ | Unit test with MSW | Vitest + MSW |
+| Multi-layer | Integration test in $test/ | Vitest + MSW |
+| SE_, page.tsx | E2E only | Playwright |
+
+```ts
+// $action/action.submit.test.ts — ACT_ as pure function
+import { vi, it, expect } from "vitest"
+import { ACT_SubmitLogin } from "./action.submit"
+
+vi.mock("next/headers", () => ({
+    cookies: vi.fn(() => ({ get: vi.fn(), set: vi.fn() })),
+}))
+vi.mock("next/navigation", () => ({
+    redirect: vi.fn(),
+}))
+
+it("redirects to /dashboard on valid credentials", async () => {
+    const { redirect } = await import("next/navigation")
+    await ACT_SubmitLogin({ email: "user@test.com", password: "valid123" })
+    expect(redirect).toHaveBeenCalledWith("/dashboard")
+})
+```
+
+```tsx
+// $element/client.form.test.tsx — CE_ component test
+import { render, screen, fireEvent } from "@testing-library/react"
+import { CE_LoginForm } from "./client.form"
+
+it("shows validation error for invalid email", async () => {
+    render(<CE_LoginForm />)
+    fireEvent.change(screen.getByRole("textbox", { name: /email/i }), {
+        target: { value: "bukan-email" },
+    })
+    fireEvent.blur(screen.getByRole("textbox", { name: /email/i }))
+    expect(await screen.findByText(/format email tidak valid/i)).toBeInTheDocument()
+})
+```
+
+```ts
+// $test/login-flow.integration.test.ts — multi-layer + MSW
+import { server } from "@/mocks/node"
+import { http, HttpResponse } from "msw"
+import { EP_Auth } from "@/api/auth/auth.endpoint"
+import { ACT_SubmitLogin } from "../$action/action.submit"
+
+vi.mock("next/navigation", () => ({ redirect: vi.fn() }))
+vi.mock("next/headers", () => ({
+    cookies: vi.fn(() => ({ get: vi.fn(), set: vi.fn() })),
+}))
+
+beforeAll(() => server.listen())
+afterEach(() => server.resetHandlers())
+afterAll(() => server.close())
+
+it("returns error on 401", async () => {
+    server.use(
+        http.post(EP_Auth.login, () =>
+            HttpResponse.json({ message: "Email atau password salah" }, { status: 401 })
+        )
+    )
+    const result = await ACT_SubmitLogin({ email: "x@x.com", password: "wrong" })
+    expect(result?.error).toBe("Email atau password salah")
+})
+```
+
+```ts
+// e2e/auth/login.e2e.ts — Playwright E2E
+import { test, expect } from "@playwright/test"
+
+test("user can log in with valid credentials", async ({ page }) => {
+    await page.goto("/login")
+    await page.getByRole("textbox", { name: /email/i }).fill("user@test.com")
+    await page.getByRole("textbox", { name: /password/i }).fill("valid123")
+    await page.getByRole("button", { name: /masuk/i }).click()
+    await expect(page).toHaveURL("/dashboard")
+})
+```
 
 ---
 

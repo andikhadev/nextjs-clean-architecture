@@ -1,0 +1,223 @@
+---
+title: "Testing Stack (Vitest, RTL, Playwright)"
+description: Panduan setup dan justifikasi pemilihan Vitest, React Testing Library, dan Playwright dalam konvensi Next.js Clean Architecture — mengapa tools ini dipilih dibanding Jest, Enzyme, dan Cypress.
+---
+
+## Tujuan dalam Konvensi Ini
+
+Tiga tools yang digunakan menangani tiga scope berbeda:
+
+| Tool | Scope | Menggantikan |
+|------|-------|--------------|
+| **Vitest** | Unit test + component test + integration test | Jest |
+| **React Testing Library (RTL)** | Render dan interaksi komponen React | Enzyme |
+| **Playwright** | E2E test di browser nyata | Cypress |
+
+Ketiganya dirancang untuk bekerja bersama: Vitest sebagai test runner, RTL untuk assertion UI, dan Playwright untuk full user journey.
+
+---
+
+## Mengapa Vitest, Bukan Jest
+
+Jest adalah standar lama yang masih banyak dipakai, tetapi punya beberapa friction nyata di ekosistem modern:
+
+| Aspek | Jest | Vitest |
+|-------|------|--------|
+| **ESM support** | Butuh Babel transform atau `--experimental-vm-modules` | Native ESM — zero config |
+| **TypeScript** | Butuh `ts-jest` atau Babel | Native via Vite — tidak perlu transform |
+| **Konfigurasi** | `jest.config.js` + `babel.config.js` + `tsconfig paths` | Satu `vitest.config.ts`, reuse dari `vite.config.ts` |
+| **Speed** | Single-threaded by default | Paralel by default, shared Vite module graph |
+| **Watch mode** | Lambat di repo besar | Instan — Vite HMR-based |
+| **API** | `jest.fn()`, `jest.mock()` | `vi.fn()`, `vi.mock()` — API identik, migrasi mudah |
+
+Dalam project Next.js dengan TypeScript strict dan path aliases (`@/`), Vitest tidak membutuhkan konfigurasi tambahan selain mereuse alias dari `tsconfig.json`.
+
+---
+
+## Mengapa RTL, Bukan Enzyme
+
+Enzyme menyediakan akses langsung ke internal komponen (state, lifecycle, instance). Ini membuat test rapuh terhadap refactor — ubah nama state atau struktur komponen, test langsung merah meskipun perilaku tidak berubah.
+
+RTL memaksa testing dari perspektif **user**, bukan implementasi:
+
+```tsx
+// ❌ Enzyme — test implementation detail
+const wrapper = shallow(<CE_LoginForm />)
+expect(wrapper.state("isLoading")).toBe(false)
+wrapper.find("button").simulate("click")
+expect(wrapper.state("isLoading")).toBe(true)
+
+// ✅ RTL — test perilaku yang user lihat
+render(<CE_LoginForm />)
+await userEvent.click(screen.getByRole("button", { name: /masuk/i }))
+expect(screen.getByRole("button", { name: /masuk/i })).toBeDisabled()
+```
+
+Keuntungan nyata:
+- **Refactor bebas** — selama perilaku sama, test tetap hijau
+- **Aksesibilitas by default** — query `getByRole` mendorong elemen semantik yang benar
+- **React official recommendation** — didukung dan direkomendasikan oleh tim React
+
+---
+
+## Mengapa Playwright, Bukan Cypress
+
+Cypress populer dan punya DX yang baik, tetapi ada keterbatasan teknis yang relevan untuk Next.js:
+
+| Aspek | Cypress | Playwright |
+|-------|---------|------------|
+| **Browser execution** | Berjalan dalam iframe di dalam Cypress runner | Browser nyata (Chromium, Firefox, WebKit) |
+| **Multi-browser** | Chromium + Firefox (terbatas) | Chromium, Firefox, WebKit — official support |
+| **Paralelisme** | Butuh Cypress Cloud (berbayar) | Built-in, gratis |
+| **SSR / Server Components** | Kesulitan test server-rendered content | Tidak ada perbedaan — render di browser nyata |
+| **Network intercept** | `cy.intercept()` — hanya XHR/fetch dari browser | `page.route()` — termasuk navigasi dan resource |
+| **Trace & debugging** | Screenshots | Trace viewer dengan timeline lengkap |
+| **File upload / drag-drop** | Workaround diperlukan | Built-in |
+
+Untuk Next.js App Router, perbedaan iframe vs real browser paling terasa saat testing Server Components — Playwright tidak punya friction di sini.
+
+---
+
+## Setup
+
+### Instalasi
+
+```bash
+# Vitest + RTL
+pnpm add -D vitest @vitejs/plugin-react jsdom @testing-library/react @testing-library/jest-dom @testing-library/user-event
+
+# Playwright
+pnpm add -D @playwright/test
+npx playwright install
+```
+
+### `vitest.config.ts`
+
+```ts
+import { defineConfig } from "vitest/config"
+import react from "@vitejs/plugin-react"
+import path from "path"
+
+export default defineConfig({
+    plugins: [react()],
+    test: {
+        environment: "jsdom",
+        globals: true,
+        setupFiles: ["./vitest.setup.ts"],
+    },
+    resolve: {
+        alias: {
+            "@": path.resolve(__dirname, "./src"),
+        },
+    },
+})
+```
+
+### `vitest.setup.ts`
+
+```ts
+import "@testing-library/jest-dom"
+import { server } from "@/mocks/node"
+
+// MSW lifecycle — aktif untuk semua test yang butuh API mock
+beforeAll(() => server.listen())
+afterEach(() => server.resetHandlers())
+afterAll(() => server.close())
+```
+
+### `playwright.config.ts`
+
+```ts
+import { defineConfig, devices } from "@playwright/test"
+
+export default defineConfig({
+    testDir: "./e2e",
+    fullyParallel: true,
+    reporter: "html",
+    use: {
+        baseURL: "http://localhost:3000",
+        trace: "on-first-retry",
+    },
+    projects: [
+        { name: "chromium", use: { ...devices["Desktop Chrome"] } },
+        { name: "firefox", use: { ...devices["Desktop Firefox"] } },
+        { name: "webkit", use: { ...devices["Desktop Safari"] } },
+    ],
+    webServer: {
+        command: "pnpm dev",
+        url: "http://localhost:3000",
+        reuseExistingServer: !process.env.CI,
+    },
+})
+```
+
+### `tsconfig.json` — pastikan path alias tersedia
+
+```json
+{
+    "compilerOptions": {
+        "paths": {
+            "@/*": ["./src/*"]
+        }
+    }
+}
+```
+
+---
+
+## Pola Penggunaan
+
+### Jalankan test
+
+```bash
+# Unit + component + integration
+pnpm vitest
+
+# Watch mode (development)
+pnpm vitest --watch
+
+# Coverage
+pnpm vitest --coverage
+
+# E2E
+pnpm playwright test
+
+# E2E dengan UI
+pnpm playwright test --ui
+```
+
+### Script di `package.json`
+
+```json
+{
+    "scripts": {
+        "test": "vitest run",
+        "test:watch": "vitest",
+        "test:coverage": "vitest run --coverage",
+        "test:e2e": "playwright test",
+        "test:e2e:ui": "playwright test --ui"
+    }
+}
+```
+
+---
+
+## Aturan Konvensi
+
+1. **Tidak ada `__tests__/` folder** — unit dan component test co-located di samping file sumber.
+2. **Integration test di `$test/`** — scope multi-layer, bukan milik satu file.
+3. **E2E di `/e2e/` root** — diorganisir per feature: `e2e/[feature]/[feature].e2e.ts`.
+4. **`vi.mock` di level module** — deklarasi sebelum `import` lain, bukan di dalam `it` atau `describe`.
+5. **`server.resetHandlers()` di `afterEach`** — wajib ada di setiap file yang override MSW handler.
+6. **Server Component tidak di-unit-test** — gunakan E2E untuk verifikasi output SE_ dan `page.tsx`.
+7. **Query RTL via role/label** — hindari `querySelector`, class selector, atau `data-testid` kecuali tidak ada cara lain.
+
+---
+
+## Referensi
+
+- [Pattern J — Testing Convention](/patterns/testing)
+- [Stack — MSW](/stack/msw)
+- [Vitest Docs](https://vitest.dev)
+- [React Testing Library Docs](https://testing-library.com/docs/react-testing-library/intro)
+- [Playwright Docs](https://playwright.dev)

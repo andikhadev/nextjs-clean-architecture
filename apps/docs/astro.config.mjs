@@ -75,6 +75,7 @@ export default defineConfig({
                         { label: "G — Library Adapter", slug: "patterns/lib-adapter" },
                         { label: "H — i18n (next-intl)", slug: "patterns/i18n" },
                         { label: "I — API Mocking (MSW)", slug: "patterns/api-mocking" },
+                        { label: "J — Testing Convention", slug: "patterns/testing" },
                     ],
                 },
                 {
@@ -87,6 +88,7 @@ export default defineConfig({
                         { label: "Zod", slug: "stack/zod" },
                         { label: "next-intl", slug: "stack/next-intl" },
                         { label: "MSW", slug: "stack/msw" },
+                        { label: "Testing (Vitest, RTL, Playwright)", slug: "stack/testing" },
                     ],
                 },
                 {

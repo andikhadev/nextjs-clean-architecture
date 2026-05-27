@@ -598,6 +598,128 @@ afterAll(() => server.close())
 
 ---
 
+### Pattern J — Testing Convention
+
+**Kapan:** Semua kode production wajib punya test. Pilih jenis test berdasarkan layer — bukan berdasarkan preferensi pribadi.
+
+**Layer → Test Type:**
+
+| Layer | Test Type | Tools |
+|-------|-----------|-------|
+| `CFN_`, `SFN_`, `ZS_` | Unit test | Vitest |
+| `ACT_` (Server Action) | Unit test sebagai pure function | Vitest + `vi.mock` |
+| `CE_` (Client Element) | Component test | Vitest + RTL |
+| `APIS_`, `APIC_` | Unit test dengan mock API | Vitest + MSW |
+| Multi-layer dalam feature | Integration test | Vitest + MSW |
+| `SE_`, `page.tsx` | E2E | Playwright |
+
+**Struktur File:**
+```
+app/[feature]/
+├── $action/
+│   ├── action.submit.ts
+│   └── action.submit.test.ts          ← unit test ACT_ (pure function)
+├── $element/
+│   ├── client.form.tsx
+│   └── client.form.test.tsx           ← component test CE_
+├── $function/
+│   ├── cfn.validate.ts
+│   └── cfn.validate.test.ts           ← unit test CFN_
+└── $test/
+    └── submit-flow.integration.test.ts ← multi-layer, pakai MSW
+
+e2e/
+└── [feature]/
+    └── [feature].e2e.ts               ← Playwright, full user journey
+```
+
+**Mocking Strategy:**
+
+| Yang Di-mock | Caranya |
+|-------------|---------|
+| `next/headers` (`cookies`, `headers`) | `vi.mock('next/headers')` |
+| `next/navigation` (`redirect`, `notFound`) | `vi.mock('next/navigation')` |
+| `next/cache` (`revalidatePath`, `revalidateTag`) | `vi.mock('next/cache')` |
+| HTTP API calls | MSW via `server` dari `src/mocks/node` |
+
+**Aturan:**
+1. **Server Action dipanggil langsung sebagai fungsi** — bukan via `fetch`. Mock `next/headers` dan `next/navigation` sebelum memanggil.
+2. **CE_ di-test dari perspektif user** — gunakan `getByRole`, `findByText`, bukan selector class/id atau instance method.
+3. **SE_ tidak di-unit-test** — Server Component butuh full Next.js runtime. Cukup cover via E2E.
+4. **Mock harus di-reset setelah setiap test** — `afterEach(() => server.resetHandlers())` wajib ada di setiap file yang pakai MSW.
+5. **`vi.mock` dideklarasikan di level module** — di atas `describe` block, bukan di dalam `it`.
+6. **Override handler per test untuk error simulation** — gunakan `server.use(...)` di dalam `it` block, bukan mengganti global handler.
+
+**Contoh — Unit test ACT_:**
+```ts
+// $action/action.submit.test.ts
+import { vi, it, expect } from "vitest"
+import { ACT_SubmitLogin } from "./action.submit"
+
+vi.mock("next/headers", () => ({
+    cookies: vi.fn(() => ({ get: vi.fn(), set: vi.fn() })),
+}))
+vi.mock("next/navigation", () => ({
+    redirect: vi.fn(),
+}))
+
+it("redirects to dashboard on valid credentials", async () => {
+    const { redirect } = await import("next/navigation")
+    await ACT_SubmitLogin({ email: "user@test.com", password: "valid123" })
+    expect(redirect).toHaveBeenCalledWith("/dashboard")
+})
+
+it("returns error on invalid credentials", async () => {
+    const result = await ACT_SubmitLogin({ email: "x@x.com", password: "wrong" })
+    expect(result?.error).toBeDefined()
+})
+```
+
+**Contoh — Component test CE_:**
+```tsx
+// $element/client.form.test.tsx
+import { render, screen, fireEvent } from "@testing-library/react"
+import { CE_LoginForm } from "./client.form"
+
+it("shows validation error for invalid email", async () => {
+    render(<CE_LoginForm />)
+    fireEvent.change(screen.getByRole("textbox", { name: /email/i }), {
+        target: { value: "bukan-email" },
+    })
+    fireEvent.blur(screen.getByRole("textbox", { name: /email/i }))
+    expect(await screen.findByText(/format email tidak valid/i)).toBeInTheDocument()
+})
+```
+
+**Contoh — Integration test di `$test/`:**
+```ts
+// $test/submit-flow.integration.test.ts
+import { server } from "@/mocks/node"
+import { http, HttpResponse } from "msw"
+import { EP_Auth } from "@/api/auth/auth.endpoint"
+import { ACT_SubmitLogin } from "../$action/action.submit"
+
+vi.mock("next/navigation", () => ({ redirect: vi.fn() }))
+
+beforeAll(() => server.listen())
+afterEach(() => server.resetHandlers())
+afterAll(() => server.close())
+
+it("handles API 401 gracefully", async () => {
+    server.use(
+        http.post(EP_Auth.login, () =>
+            HttpResponse.json({ message: "Unauthorized" }, { status: 401 })
+        )
+    )
+    const result = await ACT_SubmitLogin({ email: "x@x.com", password: "wrong" })
+    expect(result?.error).toBe("Unauthorized")
+})
+```
+
+> Dokumentasi lengkap: [Pattern J — Testing](/patterns/testing), [Stack — Testing](/stack/testing)
+
+---
+
 ## Catatan Pengembangan Lanjutan
 
 ### Menambah Auth Middleware

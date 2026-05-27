@@ -59,6 +59,7 @@ app/[feature]/
 ├── $element/     SE_ (server) / CE_ (client) — React components
 ├── $function/    SFN_ (server) / CFN_ (client) — helper functions
 ├── $store/       useXxxStore — Zustand stores scoped ke feature ini
+├── $test/        integration test multi-layer (Vitest + MSW)
 └── page.tsx      hanya boleh: return <SE_FeatureLayout />
 ```
 
@@ -109,6 +110,9 @@ app/[feature]/
 - MSW (dev): aktifkan via `instrumentation-client.ts` (client primary) + `instrumentation.ts` (server)
 - MSW fallback: `layout.tsx` bisa memanggil `initMocksClient()` — singleton guard mencegah double init
 - MSW (test): import `server` langsung dari `@/mocks/node` untuk lifecycle control
+- Testing: unit/component test co-located di samping file sumber; integration test di `$test/`; E2E di `/e2e/[feature]/`
+- Server Action test: import langsung sebagai fungsi, `vi.mock('next/headers')` + `vi.mock('next/navigation')`
+- SE_ dan `page.tsx` tidak di-unit-test — cukup E2E (Playwright)
 
 ---
 

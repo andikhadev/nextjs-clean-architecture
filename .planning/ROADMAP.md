@@ -30,6 +30,7 @@ Next.js 15+  (App Router)
 | 1 | Convention v2 Spec | [01-convention-spec.md](01-convention-spec.md) | ✅ Selesai |
 | 1a | Convention v2 — Perbaikan Dokumentasi | Perbaikan dari review developer: APIC_, decision guide, testing convention, fix $lang/ | ✅ Selesai |
 | 1b | Convention v2 — Pattern I: API Mocking (MSW) | Pattern baru: EP_ registry, mock-handler co-located, src/mocks/ wiring. Stack page MSW + update user-management example | ✅ Selesai |
+| 1c | Convention v2 — Pattern J: Testing Convention | Pattern baru: layer → test type mapping, mocking strategy (vi.mock + MSW), Vitest + RTL + Playwright. Stack page testing + update structure/test.md | ✅ Selesai |
 | 2 | Astro Starlight — Setup | [02-astro-starlight.md](02-astro-starlight.md) | ✅ Selesai |
 | 3 | Astro Starlight — Konten | [03-content.md](03-content.md) | ✅ Selesai |
 | 4 | llms.txt | [04-llms-txt.md](04-llms-txt.md) | ✅ Selesai |
