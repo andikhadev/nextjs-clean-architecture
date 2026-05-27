@@ -41,6 +41,7 @@ Next.js 15+  (App Router)
 ├── Server State  TanStack Query
 ├── Forms         TanStack Form + Zod
 ├── i18n          next-intl
+├── API Mocking   MSW (Mock Service Worker) — dev + testing
 └── Language      TypeScript strict
 ```
 
@@ -76,6 +77,8 @@ app/[feature]/
 | Zustand Store | `[module].store.ts` | `ui.store.ts` |
 | Zod Schema | `[module].schema.ts` | `login.schema.ts` |
 | API | `[resource].ts` + `[resource].type.ts` | `login.ts` |
+| Endpoint Path Registry | `[feature].endpoint.ts` | `user.endpoint.ts` |
+| MSW Mock Handler | `[resource].mock-handler.ts` | `users-list.mock-handler.ts` |
 | Registry | `[domain].register.ts` | `routes.register.ts` |
 | i18n messages | `[locale].json` | `id.json`, `en.json` — di `messages/` root |
 | Lib adapter | `[library].ts` + `index.ts` | `ioredis.ts` di `lib/cache/` |
@@ -88,7 +91,7 @@ app/[feature]/
 | Server Element | `SE_` | Client Function | `CFN_` |
 | Server Function | `SFN_` | Zustand hook | `useXxxStore` |
 | API fetch (server-only) | `APIS_` | API fetch (client-accessible) | `APIC_` |
-| Zod schema | `ZS_` | | |
+| Endpoint path registry | `EP_` | Zod schema | `ZS_` |
 | Interface | `I_` | Request interface | `IRq_` |
 | Response interface | `IRs_` | Type alias | `T_` |
 | Enum | `E_` | Query key | `QK_` |

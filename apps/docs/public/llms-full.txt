@@ -1,7 +1,7 @@
 # Next.js Clean Architecture Convention v2
 
 > Convention guide for structuring Next.js 15+ App Router projects.
-> Stack: Next.js 15, TypeScript, shadcn/ui, Zustand, nuqs, TanStack Query, TanStack Form, Zod, next-intl.
+> Stack: Next.js 15, TypeScript, shadcn/ui, Zustand, nuqs, TanStack Query, TanStack Form, Zod, next-intl, MSW.
 
 ## Folder Structure
 
@@ -12,6 +12,9 @@
 - `src/app/[feature]/$function/` — helper functions (SFN_ server, CFN_ client)
 - `src/app/[feature]/$store/` — Zustand stores scoped to this feature
 - `src/api/[feature]/` — fetch wrappers per feature (APIS_ server-only, APIC_ client-accessible)
+- `src/api/[feature]/[feature].endpoint.ts` — EP_ path constants, shared by fetch functions and mock handlers (optional, Pattern I)
+- `src/api/[feature]/[resource].mock-handler.ts` — MSW handler co-located with API file (optional, Pattern I)
+- `src/mocks/` — MSW wiring only: browser.ts (dev), node.ts (testing), index.ts + initMocks()
 - `src/i18n/` — next-intl routing + request config
 - `src/lib/[domain]/` — third-party adapters (index.ts interface + [library].ts impl)
 - `src/reg/` — global constants: routes (ROUTE_), query keys (QK_)
@@ -22,9 +25,20 @@
 ```
 api/
 ├── [feature]/
-│   ├── [resource].ts        fetch functions
-│   └── [resource].type.ts   IRq_ and IRs_ interfaces
-└── common.ts                shared headers, base fetcher, error handler
+│   ├── [feature].endpoint.ts    EP_ path constants (optional, Pattern I)
+│   ├── [resource].ts            fetch functions (APIS_ or APIC_)
+│   ├── [resource].type.ts       IRq_ and IRs_ interfaces
+│   └── [resource].mock-handler.ts  MSW handler co-located (optional, Pattern I)
+└── common.ts                    shared headers, base fetcher, error handler
+```
+
+### MSW Wiring
+
+```
+src/mocks/                        MSW wiring — only for Pattern I projects
+├── browser.ts                    setupWorker — Next.js client (dev)
+├── node.ts                       setupServer — testing (Vitest/Jest)
+└── index.ts                      collect all handlers + export initMocks()
 ```
 
 ### Lib Layer
@@ -58,6 +72,8 @@ reg/
 - Zustand Store: `[module].store.ts`
 - Zod Schema: `[module].schema.ts`
 - API: `[resource].ts` + `[resource].type.ts`
+- Endpoint Path Registry: `[feature].endpoint.ts` (EP_ prefix)
+- MSW Mock Handler: `[resource].mock-handler.ts`
 - Lib adapter: `[library].ts` (impl) + `index.ts` (interface + re-export)
 - i18n messages: `[locale].json` in `messages/` root
 
@@ -80,6 +96,7 @@ reg/
 - T_ → Type alias
 - E_ → Enum
 - I_[Domain]Adapter → lib adapter interface
+- EP_ → Endpoint path registry object (path constants shared by APIS_/APIC_ and mock handlers)
 
 ## Key Rules
 
@@ -97,6 +114,8 @@ reg/
 - All user-facing strings use useTranslations (CE_) or getTranslations (SE_/SFN_).
 - QK_ values must be defined in reg/query-keys.register.ts, not inline.
 - ROUTE_ values must be defined in reg/routes.register.ts, not inline.
+- EP_ values must be defined in [feature].endpoint.ts, not hardcoded in fetch functions or handlers.
+- MSW mock handlers must use EP_ for paths and IRs_ for response types. Never active in production.
 
 ## Patterns
 
@@ -108,6 +127,7 @@ reg/
 - Pattern F — shadcn/ui extension: wrap in CE_ or lib/, never modify components/ui/
 - Pattern G — Library adapter: lib/[domain]/index.ts (interface) + lib/[domain]/[library].ts (impl)
 - Pattern H — i18n: messages/[locale].json namespaced by feature; useTranslations/getTranslations
+- Pattern I — API Mocking (MSW): EP_[Feature] (path registry) → APIS_/APIC_ (prod) + mock-handler.ts (dev/test); activated via NEXT_PUBLIC_API_MOCKING or setupServer()
 
 ## Git Commits
 
@@ -465,6 +485,79 @@ export async function SE_LoginLayout() {
 
 ---
 
+### Pattern I — API Mocking (MSW)
+
+API contract defined, backend not ready yet — or isolating frontend from backend in tests.
+
+```
+EP_[Feature] (path constants)
+    ↓                    ↓
+APIS_/APIC_        mock-handler.ts
+(real fetch)       (MSW handler)
+    ↓                    ↓
+Production         Dev / Testing
+```
+
+```ts
+// api/user/user.endpoint.ts
+export const EP_User = {
+    list: "/api/users",
+    detail: (id: string) => `/api/users/${id}`,
+    create: "/api/users",
+}
+
+// api/user/user-list.ts (use EP_ instead of hardcoded path)
+import { EP_User } from "./user.endpoint"
+import type { IRq_GetUsers, IRs_GetUsers } from "./user-list.type"
+
+export async function APIC_GetUsers(params: IRq_GetUsers): Promise<IRs_GetUsers> {
+    const res = await fetch(`${EP_User.list}?${new URLSearchParams(params)}`)
+    return res.json()
+}
+
+// api/user/user-list.mock-handler.ts
+import { http, HttpResponse } from "msw"
+import { EP_User } from "./user.endpoint"
+import type { IRs_GetUsers } from "./user-list.type"
+
+export const userListHandler = http.get(EP_User.list, () =>
+    HttpResponse.json<IRs_GetUsers>({
+        items: [
+            { id: "1", name: "Andikha", email: "andikha@example.com", role: "admin" },
+            { id: "2", name: "Budi", email: "budi@example.com", role: "viewer" },
+        ],
+        total: 2,
+    })
+)
+
+// src/mocks/index.ts
+import { userListHandler } from "@/api/user/user-list.mock-handler"
+
+export const handlers = [userListHandler]
+
+export async function initMocks() {
+    if (typeof window === "undefined") return
+    const { worker } = await import("./browser")
+    return worker.start({ onUnhandledRequest: "bypass" })
+}
+
+// app/layout.tsx — dev activation (never in production)
+if (process.env.NEXT_PUBLIC_API_MOCKING === "enabled") {
+    const { initMocks } = await import("@/mocks")
+    await initMocks()
+}
+
+// vitest.setup.ts — test activation
+import { server } from "@/mocks/node"
+beforeAll(() => server.listen())
+afterEach(() => server.resetHandlers())
+afterAll(() => server.close())
+```
+
+> To override a handler in a specific test: `server.use(http.get(EP_User.list, () => HttpResponse.json(..., { status: 500 })))`
+
+---
+
 ---
 
 ## Example Use Case
@@ -517,21 +610,26 @@ export function CE_CTAButton({ href, children }: I_CTAButtonProps) {
 
 ### Example 2 — User Management
 
-Patterns: A + B + C + D + E + H
+Patterns: A + B + C + D + E + H + I
 
 ```
 app/user-management/
-├── page.tsx                      → only: return <SE_UserManagementLayout searchParams={params} />
-├── $action/action.create.ts      ACT_CreateUser — "use server", ZS_ validate → APIS_
+├── page.tsx                         → only: return <SE_UserManagementLayout searchParams={params} />
+├── $action/action.create.ts         ACT_CreateUser — "use server", ZS_ validate → APIS_
 ├── $element/
-│   ├── server.layout.tsx         SE_UserManagementLayout — async, APIS_GetUsers + getTranslations
-│   ├── client.searchbar.tsx      CE_SearchBar — router.replace(?search=...) Pattern D
-│   ├── client.table.tsx          CE_UserTable — useQuery(QK_UserList) Pattern B + Zustand dispatch
-│   ├── client.create-modal.tsx   CE_CreateModal — useActionState(ACT_CreateUser) Pattern C + Zustand subscribe
-│   └── client.pagination.tsx     CE_Pagination — router.replace(?page=...) Pattern D
-└── $store/ui.store.ts            useUserManagementStore — isModalOpen, selectedId Pattern E
-api/user-management/users.ts      APIS_GetUsers, APIS_CreateUser
-reg/query-keys.register.ts        QK_UserList
+│   ├── server.layout.tsx            SE_UserManagementLayout — async, APIS_GetUsers + getTranslations
+│   ├── client.searchbar.tsx         CE_SearchBar — router.replace(?search=...) Pattern D
+│   ├── client.table.tsx             CE_UserTable — useQuery(QK_UserList) Pattern B + Zustand dispatch
+│   ├── client.create-modal.tsx      CE_CreateModal — useActionState(ACT_CreateUser) Pattern C + Zustand subscribe
+│   └── client.pagination.tsx        CE_Pagination — router.replace(?page=...) Pattern D
+└── $store/ui.store.ts               useUserManagementStore — isModalOpen, selectedId Pattern E
+api/user-management/
+├── user-management.endpoint.ts      EP_UserManagement — path constants (Pattern I)
+├── users.ts                         APIS_GetUsers, APIS_CreateUser
+├── users.type.ts                    IRq_CreateUser, IRq_GetUsers, IRs_UserList
+└── users-list.mock-handler.ts       mock GET + POST (Pattern I)
+reg/query-keys.register.ts           QK_UserList
+src/mocks/index.ts                   collect handlers + initMocks()
 ```
 
 ```tsx

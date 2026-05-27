@@ -25,6 +25,9 @@ Bergantung pada: Step 01 (spec selesai).
 - `APIS_` diklarifikasi sebagai server-only (internal API)
 - Testing convention ditambahkan: unit test co-located, integration/E2E di `$test/`
 - `$lang/` dihapus dari feature folder structure (sudah deprecated sejak v2)
+- `EP_` prefix ditambahkan — Endpoint path registry, single source of truth path API di `[feature].endpoint.ts`
+- Pattern I ditambahkan — API Mocking dengan MSW: mock-handler co-located di `api/[feature]/`, wiring di `src/mocks/`
+- Stack: MSW ditambahkan sebagai library untuk dev mocking dan testing isolation
 
 ---
 

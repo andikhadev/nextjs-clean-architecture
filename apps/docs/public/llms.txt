@@ -1,7 +1,7 @@
 # Next.js Clean Architecture Convention v2
 
 > Convention guide for structuring Next.js 15+ App Router projects.
-> Stack: Next.js 15, TypeScript, shadcn/ui, Zustand, nuqs, TanStack Query, TanStack Form, Zod, next-intl.
+> Stack: Next.js 15, TypeScript, shadcn/ui, Zustand, nuqs, TanStack Query, TanStack Form, Zod, next-intl, MSW.
 
 ## Folder Structure
 
@@ -12,6 +12,9 @@
 - `src/app/[feature]/$function/` — helper functions (SFN_ server, CFN_ client)
 - `src/app/[feature]/$store/` — Zustand stores scoped to this feature
 - `src/api/[feature]/` — fetch wrappers per feature (APIS_ server-only, APIC_ client-accessible)
+- `src/api/[feature]/[feature].endpoint.ts` — EP_ path constants, shared by fetch functions and mock handlers (optional, Pattern I)
+- `src/api/[feature]/[resource].mock-handler.ts` — MSW handler co-located with API file (optional, Pattern I)
+- `src/mocks/` — MSW wiring only: browser.ts (dev), node.ts (testing), index.ts + initMocks()
 - `src/i18n/` — next-intl routing + request config
 - `src/lib/[domain]/` — third-party adapters (index.ts interface + [library].ts impl)
 - `src/reg/` — global constants: routes (ROUTE_), query keys (QK_)
@@ -27,6 +30,8 @@
 - Zustand Store: `[module].store.ts`
 - Zod Schema: `[module].schema.ts`
 - API: `[resource].ts` + `[resource].type.ts`
+- Endpoint Path Registry: `[feature].endpoint.ts` (EP_ prefix)
+- MSW Mock Handler: `[resource].mock-handler.ts`
 - Lib adapter: `[library].ts` (impl) + `index.ts` (interface + re-export)
 - i18n messages: `[locale].json` in `messages/` root
 
@@ -46,6 +51,7 @@
 - I_ → Interface, IRq_ → Request interface, IRs_ → Response interface
 - T_ → Type alias, E_ → Enum
 - I_[Domain]Adapter → lib adapter interface
+- EP_ → Endpoint path registry object (path constants shared by APIS_/APIC_ and mock handlers)
 
 ## Key Rules
 
@@ -61,6 +67,8 @@
 - Integration/E2E tests go in $test/ folder inside the feature folder.
 - Never import external libraries directly — use adapters in lib/[domain]/.
 - All user-facing strings use useTranslations (CE_) or getTranslations (SE_/SFN_).
+- EP_ values must be defined in [feature].endpoint.ts, not hardcoded in fetch functions or handlers.
+- MSW mock handlers must use EP_ for paths and IRs_ for response types. Never active in production.
 
 ## Patterns
 
@@ -72,6 +80,7 @@
 - Pattern F — shadcn/ui extension: wrap in CE_ or lib/, never modify components/ui/
 - Pattern G — Library adapter: lib/[domain]/index.ts (interface) + lib/[domain]/[library].ts (impl)
 - Pattern H — i18n: messages/[locale].json namespaced by feature; useTranslations/getTranslations
+- Pattern I — API Mocking (MSW): EP_[Feature] (path registry) → APIS_/APIC_ (prod) + mock-handler.ts (dev/test); activated via NEXT_PUBLIC_API_MOCKING or setupServer()
 
 ## Git Commits
 
@@ -83,7 +92,7 @@ Types: feat, fix, docs, refactor, chore, test, perf, style
 Real-world examples showing how multiple patterns combine in one feature.
 
 - Example 1 — Landing Page Bilingual: Pattern A (SE_ server fetch) + F (CE_ shadcn wrapper) + H (getTranslations/useTranslations + language switcher)
-- Example 2 — User Management: Pattern A (SE_ initial fetch) + B (useQuery + QK_ refetch) + C (ACT_ + ZS_ + form) + D (URL search params) + E (useXxxStore modal state) + H (i18n)
+- Example 2 — User Management: Pattern A (SE_ initial fetch) + B (useQuery + QK_ refetch) + C (ACT_ + ZS_ + form) + D (URL search params) + E (useXxxStore modal state) + H (i18n) + I (EP_UserManagement path registry + users-list.mock-handler.ts for parallel dev)
 - Example 3 — Form Wizard: Pattern C (per-step ZS_ + ACT_ final submit) + E (useWizardStore for step + data) + F (CE_ shadcn Progress wrapper) + H (i18n)
 
 ## Docs
