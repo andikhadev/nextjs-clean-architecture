@@ -3,6 +3,7 @@ title: Next.js Clean Architecture
 description: Convention guide for Next.js 15+ App Router — folder structure, naming, and data flow patterns.
 template: splash
 hero:
+  layout: centered
   tagline: Folder structure, naming conventions, dan data flow patterns untuk Next.js 15+ App Router.
   actions:
     - text: Mulai di sini
@@ -14,20 +15,34 @@ hero:
       icon: open-book
 ---
 
+import { Card, CardGrid, Steps, LinkCard } from '@astrojs/starlight/components'
+import { ContainerSection } from 'lucode-starlight/components'
+
+<ContainerSection>
+
 ## Apa Ini?
 
 Convention guide ini mendefinisikan cara terstruktur untuk membangun aplikasi Next.js 15+ dengan App Router.
 Tujuannya satu: **setiap developer (dan AI) bisa langsung paham kode tanpa penjelasan tambahan**.
 
-Convention ini mencakup tiga area:
+<CardGrid>
+  <Card title="Folder Structure" icon="seti:folder">
+    Di mana meletakkan setiap jenis file — feature folder, `$action`, `$element`, `$function`, `$store`, `$lib`.
+  </Card>
+  <Card title="Naming Conventions" icon="pencil">
+    Prefix konsisten untuk semua simbol: `ACT_`, `SE_`, `CE_`, `SFN_`, `CFN_`, `APIS_`, `APIC_`, `ZS_`.
+  </Card>
+  <Card title="Pattern Guide" icon="open-book">
+    9 pattern data flow dari server ke client — Server Fetch, Form Submit, URL Params, Zustand, i18n, dan lainnya.
+  </Card>
+  <Card title="Example Use Case" icon="rocket">
+    Contoh implementasi pattern data flow dari server ke client.
+  </Card>
+</CardGrid>
 
-| Area | Isi |
-|------|-----|
-| **Folder Structure** | Di mana meletakkan setiap jenis file |
-| **Naming Conventions** | Prefix dan pattern untuk semua simbol |
-| **Pattern Guide** | Cara data mengalir dari server ke client |
+</ContainerSection>
 
----
+<ContainerSection>
 
 ## Stack yang Diasumsikan
 
@@ -41,50 +56,79 @@ Next.js 15+  (App Router)
 └── Language      TypeScript strict
 ```
 
----
+</ContainerSection>
 
-## 8 Pattern Data Flow
+<ContainerSection>
 
-Setiap fitur dibangun menggunakan satu atau lebih dari 8 pattern berikut:
+## 9 Pattern Data Flow
 
-| Pattern | Nama | Kapan Dipakai |
-|---------|------|---------------|
-| A | Server Fetch | Data dibutuhkan saat halaman pertama render |
-| B | Client Fetch (TanStack Query) | Data perlu di-refresh atau polling |
-| C | Form Submit | Semua form — create, update, delete |
-| D | URL Search Params (nuqs) | Search, filter, pagination yang bisa di-bookmark |
-| E | Zustand | Modal, selection, toggle — state yang tidak perlu di URL |
-| F | shadcn/ui Extension | Semua komponen UI berbasis shadcn |
-| G | Library Adapter | Integrasi Redis, S3, email, dll. |
-| H | i18n dengan next-intl | Semua teks yang tampil ke user |
+Setiap fitur dibangun menggunakan satu atau lebih dari pattern berikut:
 
----
+<CardGrid>
+  <Card title="A — Server Fetch" icon="server">
+    Data dibutuhkan saat halaman pertama render.
+  </Card>
+  <Card title="B — Client Fetch" icon="window">
+    Data perlu di-refresh atau polling via TanStack Query.
+  </Card>
+  <Card title="C — Form Submit" icon="seti:default">
+    Semua form — create, update, delete via Server Action.
+  </Card>
+  <Card title="D — URL Search Params" icon="seti:code-search">
+    Search, filter, pagination yang bisa di-bookmark via nuqs.
+  </Card>
+  <Card title="E — Zustand Store" icon="setting">
+    Modal, selection, toggle — state yang tidak perlu di URL.
+  </Card>
+  <Card title="F — shadcn/ui Extension" icon="puzzle">
+    Semua komponen UI berbasis shadcn — wrapper, tidak modifikasi langsung.
+  </Card>
+  <Card title="G — Library Adapter" icon="seti:pipeline">
+    Integrasi Redis, S3, email, dan third-party library lainnya.
+  </Card>
+  <Card title="H — i18n" icon="translate">
+    Semua teks user-facing via next-intl.
+  </Card>
+  <Card title="I — API Mocking" icon="seti:bicep">
+    Testing dan development dengan MSW.
+  </Card>
+</CardGrid>
 
-## Prasyarat
+</ContainerSection>
 
-Dokumentasi ini mengasumsikan kamu sudah familiar dengan:
-
-- **Next.js App Router** — Server Components, Server Actions, routing
-- **TypeScript** — interface, type alias, generics
-- **React** — hooks, lifecycle, Client vs Server Component
-- **Tailwind CSS** — utility-first styling
-
----
+<ContainerSection>
 
 ## Cara Baca Dokumentasi Ini
 
-Baca berurutan untuk pemahaman lengkap:
+<Steps>
+1. **[Structure Overview](/structure/overview)** — pahami folder structure dan di mana setiap file diletakkan.
 
-1. [Structure Overview](/structure/overview) — pahami folder structure dulu
-2. [Naming Overview](/naming/overview) — kenali semua prefix dan pattern naming
-3. [Patterns Overview](/patterns/overview) — pelajari 8 pattern data flow
-4. Buka halaman detail per pattern sesuai kebutuhan
+2. **[Naming Overview](/naming/overview)** — kenali semua prefix dan pattern naming untuk simbol dan file.
 
----
+3. **[Patterns Overview](/patterns/overview)** — pelajari 9 pattern data flow dan kapan masing-masing dipakai.
+
+4. **Halaman detail per pattern** — buka sesuai kebutuhan fitur yang sedang dibangun.
+</Steps>
+
+</ContainerSection>
+
+<ContainerSection>
 
 ## Untuk AI / LLM
 
 File machine-readable tersedia untuk context instan:
 
-- [`/llms.txt`](/llms.txt) — ringkasan convention (~500 token)
-- [`/llms-full.txt`](/llms-full.txt) — versi lengkap dengan contoh kode (~5000 token)
+<CardGrid>
+  <LinkCard
+    title="/llms.txt"
+    description="Ringkasan convention — ~500 token. Gunakan untuk context cepat."
+    href="/llms.txt"
+  />
+  <LinkCard
+    title="/llms-full.txt"
+    description="Versi lengkap dengan contoh kode — ~5000 token. Gunakan untuk implementasi detail."
+    href="/llms-full.txt"
+  />
+</CardGrid>
+
+</ContainerSection>

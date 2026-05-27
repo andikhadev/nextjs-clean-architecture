@@ -1,12 +1,25 @@
 import { defineConfig } from "astro/config"
 import starlight from "@astrojs/starlight"
 import vercel from "@astrojs/vercel"
+import lucode from 'lucode-starlight'
+
 
 export default defineConfig({
     output: "static",
     adapter: vercel(),
     integrations: [
-        starlight({
+      starlight({
+            plugins: [
+                lucode({
+                    navLinks: [
+                        { label: "Structure", link: "/structure/overview" },
+                        { label: "Naming", link: "/naming/overview" },
+                        { label: "Patterns", link: "/patterns/overview" },
+                        { label: "Examples", link: "/examples/user-management" },
+                    ],
+                    footerText: "Made with ❤️ in Jakarta"
+                }),
+            ],
             head: [
                 {
                     tag: "link",
