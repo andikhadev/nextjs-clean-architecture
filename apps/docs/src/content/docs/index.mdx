@@ -33,7 +33,7 @@ Tujuannya satu: **setiap developer (dan AI) bisa langsung paham kode tanpa penje
     Prefix konsisten untuk semua simbol: `ACT_`, `SE_`, `CE_`, `SFN_`, `CFN_`, `APIS_`, `APIC_`, `ZS_`.
   </Card>
   <Card title="Pattern Guide" icon="open-book">
-    9 pattern data flow dari server ke client — Server Fetch, Form Submit, URL Params, Zustand, i18n, dan lainnya.
+    10 pattern dari server fetch hingga testing convention — Server Fetch, Form Submit, URL Params, Zustand, MSW, dan lainnya.
   </Card>
   <Card title="Example Use Case" icon="rocket">
     Contoh implementasi pattern data flow dari server ke client.
@@ -53,6 +53,8 @@ Next.js 15+  (App Router)
 ├── Server State  TanStack Query
 ├── Forms         TanStack Form + Zod
 ├── i18n          next-intl
+├── API Mocking   MSW (Mock Service Worker)
+├── Testing       Vitest + React Testing Library + Playwright
 └── Language      TypeScript strict
 ```
 
@@ -60,7 +62,7 @@ Next.js 15+  (App Router)
 
 <ContainerSection>
 
-## 9 Pattern Data Flow
+## 10 Pattern
 
 Setiap fitur dibangun menggunakan satu atau lebih dari pattern berikut:
 
@@ -90,7 +92,10 @@ Setiap fitur dibangun menggunakan satu atau lebih dari pattern berikut:
     Semua teks user-facing via next-intl.
   </Card>
   <Card title="I — API Mocking" icon="seti:bicep">
-    Testing dan development dengan MSW.
+    Development paralel dan isolasi frontend dari backend via MSW.
+  </Card>
+  <Card title="J — Testing Convention" icon="approve-check-circle">
+    Unit, component, integration, dan E2E testing per layer.
   </Card>
 </CardGrid>
 
@@ -105,7 +110,7 @@ Setiap fitur dibangun menggunakan satu atau lebih dari pattern berikut:
 
 2. **[Naming Overview](/naming/overview)** — kenali semua prefix dan pattern naming untuk simbol dan file.
 
-3. **[Patterns Overview](/patterns/overview)** — pelajari 9 pattern data flow dan kapan masing-masing dipakai.
+3. **[Patterns Overview](/patterns/overview)** — pelajari 10 pattern dan kapan masing-masing dipakai.
 
 4. **Halaman detail per pattern** — buka sesuai kebutuhan fitur yang sedang dibangun.
 </Steps>
