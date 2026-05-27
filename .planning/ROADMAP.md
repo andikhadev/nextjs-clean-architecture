@@ -73,7 +73,9 @@ Next.js 15+  (App Router)
 | API Mocking | MSW (Mock Service Worker) | Intercept di network layer — kode produksi tidak berubah |
 | Endpoint path registry | `EP_` prefix di `[feature].endpoint.ts` | Single source of truth path — dipakai bersama `APIS_`/`APIC_` dan mock handler |
 | Mock handler location | Co-located di `api/[feature]/` sebagai `[resource].mock-handler.ts` | 1:1 dengan file API — ketika path berubah, handler ada di sebelahnya |
-| MSW activation | `NEXT_PUBLIC_API_MOCKING=enabled` (dev) + `setupServer` (testing) | Tidak pernah aktif di production — guard via env variable |
+| MSW activation | `instrumentation-client.ts` (client primary) + `instrumentation.ts` (server); `layout.tsx` sebagai fallback | Separation of concern — init logic tidak campur di UI layer |
+| MSW index.ts design | `initMocksClient()` + `initMocksServer()` dengan dynamic import | Mencegah bundling issue — browser/server API tidak saling contaminate |
+| MSW logging | `attachLogger(instance, runtime)` centralized di `src/mocks/index.ts` | Format `[MSW][BROWSER\|SERVER]` konsisten, satu tempat ubah |
 
 ---
 

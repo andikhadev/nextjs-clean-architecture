@@ -14,7 +14,7 @@
 - `src/api/[feature]/` — fetch wrappers per feature (APIS_ server-only, APIC_ client-accessible)
 - `src/api/[feature]/[feature].endpoint.ts` — EP_ path constants, shared by fetch functions and mock handlers (optional, Pattern I)
 - `src/api/[feature]/[resource].mock-handler.ts` — MSW handler co-located with API file (optional, Pattern I)
-- `src/mocks/` — MSW wiring only: browser.ts (dev), node.ts (testing), index.ts + initMocks()
+- `src/mocks/` — MSW wiring only: browser.ts (dev), node.ts (testing), index.ts + initMocksClient() + initMocksServer()
 - `src/i18n/` — next-intl routing + request config
 - `src/lib/[domain]/` — third-party adapters (index.ts interface + [library].ts impl)
 - `src/reg/` — global constants: routes (ROUTE_), query keys (QK_)
@@ -38,7 +38,7 @@ api/
 src/mocks/                        MSW wiring — only for Pattern I projects
 ├── browser.ts                    setupWorker — Next.js client (dev)
 ├── node.ts                       setupServer — testing (Vitest/Jest)
-└── index.ts                      collect all handlers + export initMocks()
+└── index.ts                      handlers + initMocksClient() + initMocksServer() + attachLogger()
 ```
 
 ### Lib Layer
@@ -127,7 +127,7 @@ reg/
 - Pattern F — shadcn/ui extension: wrap in CE_ or lib/, never modify components/ui/
 - Pattern G — Library adapter: lib/[domain]/index.ts (interface) + lib/[domain]/[library].ts (impl)
 - Pattern H — i18n: messages/[locale].json namespaced by feature; useTranslations/getTranslations
-- Pattern I — API Mocking (MSW): EP_[Feature] (path registry) → APIS_/APIC_ (prod) + mock-handler.ts (dev/test); activated via NEXT_PUBLIC_API_MOCKING or setupServer()
+- Pattern I — API Mocking (MSW): EP_[Feature] (path registry) → APIS_/APIC_ (prod) + mock-handler.ts (dev/test); initMocksClient() via instrumentation-client.ts (primary) + layout.tsx (fallback, singleton guard); initMocksServer() via instrumentation.ts; logging via attachLogger()
 
 ## Git Commits
 
@@ -535,19 +535,53 @@ import { userListHandler } from "@/api/user/user-list.mock-handler"
 
 export const handlers = [userListHandler]
 
-export async function initMocks() {
+function attachLogger(instance: { events: any }, runtime: "BROWSER" | "SERVER") {
+    instance.events.on("response:mocked", ({ request, response }: any) => {
+        console.log(`[MSW][${runtime}] ${request.method} ${new URL(request.url).pathname} → ${response.status}`)
+    })
+    instance.events.on("request:unhandled", ({ request }: any) => {
+        console.warn(`[MSW][${runtime}] ⚠ unhandled: ${request.method} ${new URL(request.url).pathname}`)
+    })
+}
+
+let clientInitialized = false
+
+export async function initMocksClient() {
+    if (clientInitialized) return
     if (typeof window === "undefined") return
     const { worker } = await import("./browser")
-    return worker.start({ onUnhandledRequest: "bypass" })
+    attachLogger(worker, "BROWSER")
+    await worker.start({ onUnhandledRequest: "bypass" })
+    clientInitialized = true
 }
 
-// app/layout.tsx — dev activation (never in production)
+export async function initMocksServer() {
+    if (process.env.NEXT_RUNTIME !== "nodejs") return
+    const { server } = await import("./node")
+    attachLogger(server, "SERVER")
+    server.listen({ onUnhandledRequest: "bypass" })
+}
+
+// src/instrumentation-client.ts — primary client activation (Next.js 15+)
+import { initMocksClient } from "@/mocks"
 if (process.env.NEXT_PUBLIC_API_MOCKING === "enabled") {
-    const { initMocks } = await import("@/mocks")
-    await initMocks()
+    await initMocksClient()
 }
 
-// vitest.setup.ts — test activation
+// src/instrumentation.ts — server activation
+export async function register() {
+    if (process.env.NEXT_PUBLIC_API_MOCKING !== "enabled") return
+    const { initMocksServer } = await import("@/mocks")
+    await initMocksServer()
+}
+
+// app/layout.tsx — fallback client activation (singleton guard prevents double init)
+if (process.env.NEXT_PUBLIC_API_MOCKING === "enabled") {
+    const { initMocksClient } = await import("@/mocks")
+    await initMocksClient()
+}
+
+// vitest.setup.ts — test activation (direct import for lifecycle control)
 import { server } from "@/mocks/node"
 beforeAll(() => server.listen())
 afterEach(() => server.resetHandlers())
@@ -629,7 +663,7 @@ api/user-management/
 ├── users.type.ts                    IRq_CreateUser, IRq_GetUsers, IRs_UserList
 └── users-list.mock-handler.ts       mock GET + POST (Pattern I)
 reg/query-keys.register.ts           QK_UserList
-src/mocks/index.ts                   collect handlers + initMocks()
+src/mocks/index.ts                   handlers + initMocksClient() + initMocksServer() + attachLogger()
 ```
 
 ```tsx

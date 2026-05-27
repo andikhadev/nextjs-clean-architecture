@@ -56,7 +56,7 @@ api/user-management/
 src/mocks/
 ├── browser.ts                       setupWorker — aktivasi di Next.js client
 ├── node.ts                          setupServer — aktivasi di testing
-└── index.ts                         kumpulkan semua handler + initMocks()
+└── index.ts                         handlers + initMocksClient() + initMocksServer() + attachLogger()
 
 reg/
 └── query-keys.register.ts           QK_UserList
@@ -561,18 +561,52 @@ import { userListHandler, userCreateHandler } from "@/api/user-management/users-
 
 export const handlers = [userListHandler, userCreateHandler]
 
-export async function initMocks() {
+function attachLogger(instance: { events: any }, runtime: "BROWSER" | "SERVER") {
+    instance.events.on("response:mocked", ({ request, response }: any) => {
+        console.log(`[MSW][${runtime}] ${request.method} ${new URL(request.url).pathname} → ${response.status}`)
+    })
+    instance.events.on("request:unhandled", ({ request }: any) => {
+        console.warn(`[MSW][${runtime}] ⚠ unhandled: ${request.method} ${new URL(request.url).pathname}`)
+    })
+}
+
+let clientInitialized = false
+
+export async function initMocksClient() {
+    if (clientInitialized) return
     if (typeof window === "undefined") return
     const { worker } = await import("./browser")
-    return worker.start({ onUnhandledRequest: "bypass" })
+    attachLogger(worker, "BROWSER")
+    await worker.start({ onUnhandledRequest: "bypass" })
+    clientInitialized = true
+}
+
+export async function initMocksServer() {
+    if (process.env.NEXT_RUNTIME !== "nodejs") return
+    const { server } = await import("./node")
+    attachLogger(server, "SERVER")
+    server.listen({ onUnhandledRequest: "bypass" })
 }
 ```
 
 ```ts
-// app/layout.tsx — aktifkan MSW hanya saat development dengan env flag
+// src/instrumentation-client.ts — primary client activation (Next.js 15+)
+import { initMocksClient } from "@/mocks"
 if (process.env.NEXT_PUBLIC_API_MOCKING === "enabled") {
-    const { initMocks } = await import("@/mocks")
-    await initMocks()
+    await initMocksClient()
+}
+
+// src/instrumentation.ts — server activation
+export async function register() {
+    if (process.env.NEXT_PUBLIC_API_MOCKING !== "enabled") return
+    const { initMocksServer } = await import("@/mocks")
+    await initMocksServer()
+}
+
+// app/layout.tsx — fallback (singleton guard mencegah double init)
+if (process.env.NEXT_PUBLIC_API_MOCKING === "enabled") {
+    const { initMocksClient } = await import("@/mocks")
+    await initMocksClient()
 }
 ```
 

@@ -28,6 +28,9 @@ Bergantung pada: Step 01 (spec selesai).
 - `EP_` prefix ditambahkan — Endpoint path registry, single source of truth path API di `[feature].endpoint.ts`
 - Pattern I ditambahkan — API Mocking dengan MSW: mock-handler co-located di `api/[feature]/`, wiring di `src/mocks/`
 - Stack: MSW ditambahkan sebagai library untuk dev mocking dan testing isolation
+- MSW activation dimatangkan: `instrumentation-client.ts` (primary client) + `layout.tsx` (fallback) untuk client; `instrumentation.ts` untuk server
+- `initMocks()` dipecah menjadi `initMocksClient()` + `initMocksServer()` dengan dynamic import — mencegah bundling issue
+- Logging ditambahkan: `attachLogger(instance, runtime)` dengan format `[MSW][BROWSER|SERVER] METHOD /path → STATUS`
 
 ---
 

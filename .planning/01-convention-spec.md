@@ -81,12 +81,12 @@ api/
 
 ```
 src/mocks/
-├── browser.ts    setupWorker — aktivasi di Next.js client (development)
-├── node.ts       setupServer — aktivasi di testing (Vitest/Jest)
-└── index.ts      kumpulkan semua handler + export initMocks()
+├── browser.ts    setupWorker — implementation detail untuk client
+├── node.ts       setupServer — implementation detail + test export
+└── index.ts      handlers + initMocksClient() + initMocksServer() + attachLogger()
 ```
 
-> `src/mocks/` hanya berisi setup dan import — bukan definisi handler.
+> `src/mocks/` hanya berisi wiring — bukan definisi handler.
 > Handler didefinisikan di `api/[feature]/[resource].mock-handler.ts`.
 
 ### Lib
@@ -537,22 +537,57 @@ export const userListHandler = http.get(EP_User.list, () =>
 // src/mocks/index.ts
 import { userListHandler } from "@/api/user/user-list.mock-handler"
 export const handlers = [userListHandler]
-export async function initMocks() {
+
+function attachLogger(instance: { events: any }, runtime: "BROWSER" | "SERVER") {
+    instance.events.on("response:mocked", ({ request, response }: any) => {
+        console.log(`[MSW][${runtime}] ${request.method} ${new URL(request.url).pathname} → ${response.status}`)
+    })
+    instance.events.on("request:unhandled", ({ request }: any) => {
+        console.warn(`[MSW][${runtime}] ⚠ unhandled: ${request.method} ${new URL(request.url).pathname}`)
+    })
+}
+
+let clientInitialized = false
+
+export async function initMocksClient() {
+    if (clientInitialized) return
     if (typeof window === "undefined") return
     const { worker } = await import("./browser")
-    return worker.start({ onUnhandledRequest: "bypass" })
+    attachLogger(worker, "BROWSER")
+    await worker.start({ onUnhandledRequest: "bypass" })
+    clientInitialized = true
+}
+
+export async function initMocksServer() {
+    if (process.env.NEXT_RUNTIME !== "nodejs") return
+    const { server } = await import("./node")
+    attachLogger(server, "SERVER")
+    server.listen({ onUnhandledRequest: "bypass" })
 }
 ```
 
 **Aktivasi:**
 ```ts
-// app/layout.tsx — development
+// src/instrumentation-client.ts — primary client (Next.js 15+)
+import { initMocksClient } from "@/mocks"
 if (process.env.NEXT_PUBLIC_API_MOCKING === "enabled") {
-    const { initMocks } = await import("@/mocks")
-    await initMocks()
+    await initMocksClient()
 }
 
-// vitest.setup.ts — testing
+// src/instrumentation.ts — server
+export async function register() {
+    if (process.env.NEXT_PUBLIC_API_MOCKING !== "enabled") return
+    const { initMocksServer } = await import("@/mocks")
+    await initMocksServer()
+}
+
+// app/layout.tsx — fallback client (singleton guard mencegah double init)
+if (process.env.NEXT_PUBLIC_API_MOCKING === "enabled") {
+    const { initMocksClient } = await import("@/mocks")
+    await initMocksClient()
+}
+
+// vitest.setup.ts — testing (direct import dari @/mocks/node)
 import { server } from "@/mocks/node"
 beforeAll(() => server.listen())
 afterEach(() => server.resetHandlers())

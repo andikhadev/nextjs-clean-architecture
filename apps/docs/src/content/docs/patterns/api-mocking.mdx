@@ -31,8 +31,8 @@ flowchart LR
 | 1 | `api/[feature]/[feature].endpoint.ts` | Definisikan `EP_` — semua path API feature ini |
 | 2 | `api/[feature]/[resource].ts` | Gunakan `EP_` di fungsi fetch (`APIS_`/`APIC_`) |
 | 3 | `api/[feature]/[resource].mock-handler.ts` | Tulis handler MSW — gunakan `EP_` yang sama |
-| 4 | `src/mocks/index.ts` | Daftarkan handler baru |
-| 5 | `app/layout.tsx` | Aktifkan via env flag (dev) atau test setup (testing) |
+| 4 | `src/mocks/index.ts` | Daftarkan handler; `initMocksClient()` + `initMocksServer()` tersedia |
+| 5 | `src/instrumentation-client.ts` + `src/instrumentation.ts` | Aktivasi primary (Next.js 15+); atau `app/layout.tsx` sebagai fallback |
 
 ---
 
@@ -63,9 +63,9 @@ api/user-management/
 └── users-create.mock-handler.ts   mock POST /api/user-management/users
 
 src/mocks/
-├── browser.ts    setupWorker — aktivasi di Next.js client
-├── node.ts       setupServer — aktivasi di testing
-└── index.ts      kumpulkan semua handler + export initMocks()
+├── browser.ts    setupWorker — implementation detail untuk client
+├── node.ts       setupServer — implementation detail + test export
+└── index.ts      handlers + initMocksClient() + initMocksServer() + attachLogger()
 ```
 
 ### `api/user-management/user-management.endpoint.ts`
@@ -140,31 +140,69 @@ export const userCreateHandler = http.post(EP_UserManagement.create, async ({ re
 ### `src/mocks/index.ts`
 
 ```ts
-// Daftarkan semua handler dari api/**
-// Tambah import baru setiap kali menambah mock-handler
-
 import { userListHandler, userCreateHandler } from "@/api/user-management/users-list.mock-handler"
 
 export const handlers = [
     userListHandler,
     userCreateHandler,
+    // tambah handler baru di sini
 ]
 
-export async function initMocks() {
+function attachLogger(instance: { events: any }, runtime: "BROWSER" | "SERVER") {
+    instance.events.on("response:mocked", ({ request, response }: any) => {
+        console.log(`[MSW][${runtime}] ${request.method} ${new URL(request.url).pathname} → ${response.status}`)
+    })
+    instance.events.on("request:unhandled", ({ request }: any) => {
+        console.warn(`[MSW][${runtime}] ⚠ unhandled: ${request.method} ${new URL(request.url).pathname}`)
+    })
+}
+
+let clientInitialized = false
+
+export async function initMocksClient() {
+    if (clientInitialized) return
     if (typeof window === "undefined") return
     const { worker } = await import("./browser")
-    return worker.start({ onUnhandledRequest: "bypass" })
-//                                            ↑ request tanpa handler diteruskan ke server
+    attachLogger(worker, "BROWSER")
+    await worker.start({ onUnhandledRequest: "bypass" })
+    clientInitialized = true
+}
+
+export async function initMocksServer() {
+    if (process.env.NEXT_RUNTIME !== "nodejs") return
+    const { server } = await import("./node")
+    attachLogger(server, "SERVER")
+    server.listen({ onUnhandledRequest: "bypass" })
 }
 ```
 
-### Aktivasi Development — `app/layout.tsx`
+### Aktivasi Development — Primary (`src/instrumentation-client.ts` + `src/instrumentation.ts`)
 
 ```ts
-// Aktifkan MSW hanya saat env variable di-set — tidak pernah di production
+// src/instrumentation-client.ts — client, dieksekusi sekali saat app dimuat
+import { initMocksClient } from "@/mocks"
+
 if (process.env.NEXT_PUBLIC_API_MOCKING === "enabled") {
-    const { initMocks } = await import("@/mocks")
-    await initMocks()
+    await initMocksClient()
+}
+```
+
+```ts
+// src/instrumentation.ts — server, dieksekusi saat Next.js server start
+export async function register() {
+    if (process.env.NEXT_PUBLIC_API_MOCKING !== "enabled") return
+    const { initMocksServer } = await import("@/mocks")
+    await initMocksServer()
+}
+```
+
+### Aktivasi Development — Fallback (`app/layout.tsx`)
+
+```ts
+// Singleton guard mencegah double init jika instrumentation-client.ts sudah jalan
+if (process.env.NEXT_PUBLIC_API_MOCKING === "enabled") {
+    const { initMocksClient } = await import("@/mocks")
+    await initMocksClient()
 }
 ```
 

@@ -32,7 +32,6 @@ Folder `src/mocks/` hanya berisi setup dan pengumpulan handler — **bukan** tem
 
 ```ts
 // src/mocks/browser.ts
-// Setup untuk development di browser (Next.js client)
 import { setupWorker } from "msw/browser"
 import { handlers } from "."
 
@@ -41,44 +40,93 @@ export const worker = setupWorker(...handlers)
 
 ```ts
 // src/mocks/node.ts
-// Setup untuk testing (Vitest / Jest)
 import { setupServer } from "msw/node"
 import { handlers } from "."
 
 export const server = setupServer(...handlers)
 ```
 
+`index.ts` adalah unified orchestrator — mendaftarkan semua handler, menyediakan `initMocksClient()` dan `initMocksServer()`, dan logging terpusat:
+
 ```ts
 // src/mocks/index.ts
-// Kumpulkan semua handler dari seluruh feature
-// Import handler baru di sini setiap kali menambah mock
 
-import { userListHandler, userCreateHandler } from "@/api/user-management/users-list.mock-handler"
+import { userListHandler } from "@/api/user-management/users-list.mock-handler"
 
 export const handlers = [
     userListHandler,
-    userCreateHandler,
-    // tambah handler baru di sini
+    // tambah handler baru di sini setiap kali menambah mock
 ]
 
-export async function initMocks() {
+function attachLogger(instance: { events: any }, runtime: "BROWSER" | "SERVER") {
+    instance.events.on("response:mocked", ({ request, response }: any) => {
+        console.log(`[MSW][${runtime}] ${request.method} ${new URL(request.url).pathname} → ${response.status}`)
+    })
+    instance.events.on("request:unhandled", ({ request }: any) => {
+        console.warn(`[MSW][${runtime}] ⚠ unhandled: ${request.method} ${new URL(request.url).pathname}`)
+    })
+}
+
+// ─── Client (browser) ────────────────────────────────────────────────────────
+let clientInitialized = false
+
+export async function initMocksClient() {
+    if (clientInitialized) return
     if (typeof window === "undefined") return
     const { worker } = await import("./browser")
-    return worker.start({ onUnhandledRequest: "bypass" })
-//                                            ↑ request tanpa handler tetap diteruskan ke server
+//                          ↑ dynamic import — tidak di-bundle kecuali dipanggil
+    attachLogger(worker, "BROWSER")
+    await worker.start({ onUnhandledRequest: "bypass" })
+    clientInitialized = true
+//          ↑ singleton guard — mencegah double init jika dipanggil dari dua tempat
+}
+
+// ─── Server (Node.js) ────────────────────────────────────────────────────────
+export async function initMocksServer() {
+    if (process.env.NEXT_RUNTIME !== "nodejs") return
+    const { server } = await import("./node")
+//                          ↑ dynamic import — browser tidak akan bundle Node.js API
+    attachLogger(server, "SERVER")
+    server.listen({ onUnhandledRequest: "bypass" })
 }
 ```
 
-### Aktivasi di Development
+> Dynamic import di kedua fungsi ini penting: `msw/browser` menggunakan Service Worker API yang tidak ada di Node.js, dan `msw/node` menggunakan API Node.js yang tidak ada di browser. Tanpa dynamic import, bundler bisa salah include keduanya.
 
-Tambahkan di root layout — **hanya aktif jika env variable di-set**:
+### Aktivasi — Primary (Next.js 15+)
+
+Next.js 15 menyediakan `instrumentation-client.ts` (client) dan `instrumentation.ts` (server) sebagai titik aktivasi yang bersih — terpisah dari UI layer:
+
+```ts
+// src/instrumentation-client.ts
+// Dieksekusi sekali di sisi client saat app pertama kali dimuat
+import { initMocksClient } from "@/mocks"
+
+if (process.env.NEXT_PUBLIC_API_MOCKING === "enabled") {
+    await initMocksClient()
+}
+```
+
+```ts
+// src/instrumentation.ts
+// Dieksekusi sekali di sisi server saat Next.js server start
+export async function register() {
+    if (process.env.NEXT_PUBLIC_API_MOCKING !== "enabled") return
+    const { initMocksServer } = await import("@/mocks")
+    await initMocksServer()
+}
+```
+
+### Aktivasi — Fallback (`app/layout.tsx`)
+
+Jika tidak ingin menggunakan instrumentation files, atau sebagai fallback tambahan, bisa aktifkan dari root layout. Singleton guard di `initMocksClient()` memastikan tidak terjadi double init:
 
 ```ts
 // app/layout.tsx (atau app/[locale]/layout.tsx)
-
 if (process.env.NEXT_PUBLIC_API_MOCKING === "enabled") {
-    const { initMocks } = await import("@/mocks")
-    await initMocks()
+    const { initMocksClient } = await import("@/mocks")
+    await initMocksClient()
+//          ↑ aman dipanggil dua kali — clientInitialized guard mencegah double init
 }
 ```
 
@@ -92,7 +140,7 @@ NEXT_PUBLIC_API_MOCKING=enabled
 
 ### Aktivasi di Testing
 
-Tambahkan di test setup file (misal `vitest.setup.ts`):
+Test setup mengimport `server` langsung dari `@/mocks/node` untuk kontrol penuh atas lifecycle:
 
 ```ts
 // vitest.setup.ts
@@ -100,9 +148,22 @@ import { server } from "@/mocks/node"
 
 beforeAll(() => server.listen())
 afterEach(() => server.resetHandlers())
-//                ↑ Reset setelah setiap test — hindari handler bocor ke test lain
+//                ↑ reset setelah setiap test — handler override per test tidak bocor
 afterAll(() => server.close())
 ```
+
+---
+
+## Logging
+
+`attachLogger()` di `src/mocks/index.ts` mendengarkan dua lifecycle event MSW dan mencetak log ke console:
+
+| Event | Format | Keterangan |
+|-------|--------|------------|
+| `response:mocked` | `[MSW][BROWSER] GET /api/users → 200` | Request berhasil di-intercept |
+| `request:unhandled` | `[MSW][SERVER] ⚠ unhandled: DELETE /api/users/1` | Request tidak punya handler — lewat ke server |
+
+Log ini hanya muncul saat `NEXT_PUBLIC_API_MOCKING=enabled` karena MSW tidak aktif di luar kondisi itu. Tidak perlu matikan secara manual.
 
 ---
 

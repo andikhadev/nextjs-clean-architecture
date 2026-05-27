@@ -68,6 +68,7 @@
 - Never import external libraries directly — use adapters in lib/[domain]/.
 - All user-facing strings use useTranslations (CE_) or getTranslations (SE_/SFN_).
 - EP_ values must be defined in [feature].endpoint.ts, not hardcoded in fetch functions or handlers.
+- MSW: initMocksClient() primary via instrumentation-client.ts, fallback via layout.tsx (singleton guard prevents double init). initMocksServer() via instrumentation.ts. Test setup imports server directly from @/mocks/node.
 - MSW mock handlers must use EP_ for paths and IRs_ for response types. Never active in production.
 
 ## Patterns
@@ -80,7 +81,7 @@
 - Pattern F — shadcn/ui extension: wrap in CE_ or lib/, never modify components/ui/
 - Pattern G — Library adapter: lib/[domain]/index.ts (interface) + lib/[domain]/[library].ts (impl)
 - Pattern H — i18n: messages/[locale].json namespaced by feature; useTranslations/getTranslations
-- Pattern I — API Mocking (MSW): EP_[Feature] (path registry) → APIS_/APIC_ (prod) + mock-handler.ts (dev/test); activated via NEXT_PUBLIC_API_MOCKING or setupServer()
+- Pattern I — API Mocking (MSW): EP_[Feature] (path registry) → APIS_/APIC_ (prod) + mock-handler.ts (dev/test); initMocksClient() via instrumentation-client.ts (primary) + layout.tsx (fallback, singleton guard); initMocksServer() via instrumentation.ts; logging via attachLogger()
 
 ## Git Commits
 

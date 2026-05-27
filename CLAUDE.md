@@ -106,6 +106,9 @@ app/[feature]/
 - Modal/selection/toggle → Zustand store
 - Zod validation wajib ada di Server Action sebelum memanggil `APIS_`
 - `APIS_` hanya boleh dipanggil dari SE_, ACT_, SFN_ — `APIC_` untuk CE_ via TanStack Query
+- MSW (dev): aktifkan via `instrumentation-client.ts` (client primary) + `instrumentation.ts` (server)
+- MSW fallback: `layout.tsx` bisa memanggil `initMocksClient()` — singleton guard mencegah double init
+- MSW (test): import `server` langsung dari `@/mocks/node` untuk lifecycle control
 
 ---
 
