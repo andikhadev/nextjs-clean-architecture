@@ -24,15 +24,20 @@ Ini penting karena `APIS_` boleh menggunakan env secret dan base URL internal, s
 // tree
 src/api/
 ├── auth/
-│   ├── login.ts           → export APIS_Login           (server-only)
-│   └── login.type.ts      → export IRq_Login, IRs_Login
+│   ├── login.ts                   → export APIS_Login           (server-only)
+│   └── login.type.ts              → export IRq_Login, IRs_Login
 ├── user/
-│   ├── list.ts            → export APIC_GetUsers        (client-accessible)
-│   ├── list.type.ts       → export IRq_GetUsers, IRs_GetUsers
-│   ├── detail.ts          → export APIC_GetUser         (client-accessible)
-│   └── detail.type.ts     → export IRq_GetUser, IRs_GetUser
-└── common.ts              → shared headers, base fetcher, error handler
+│   ├── user.endpoint.ts           → export EP_User              (path constants)
+│   ├── list.ts                    → export APIC_GetUsers        (client-accessible)
+│   ├── list.type.ts               → export IRq_GetUsers, IRs_GetUsers
+│   ├── list.mock-handler.ts       → MSW handler untuk GET /api/users
+│   ├── detail.ts                  → export APIC_GetUser         (client-accessible)
+│   ├── detail.type.ts             → export IRq_GetUser, IRs_GetUser
+│   └── detail.mock-handler.ts     → MSW handler untuk GET /api/users/:id
+└── common.ts                      → shared headers, base fetcher, error handler
 ```
+
+File `[feature].endpoint.ts` dan `[resource].mock-handler.ts` bersifat opsional — hanya dibuat saat menggunakan [Pattern I — API Mocking](/patterns/api-mocking).
 
 ## Aturan
 
@@ -40,8 +45,11 @@ src/api/
 |--------|--------|
 | Nama file fungsi | `[resource].ts` — satu file per endpoint/resource |
 | Nama file types | `[resource].type.ts` — pasangan wajib untuk setiap `[resource].ts` |
+| Nama file endpoint | `[feature].endpoint.ts` — definisi `EP_` untuk feature ini (opsional, untuk Pattern I) |
+| Nama file mock handler | `[resource].mock-handler.ts` — MSW handler co-located (opsional, untuk Pattern I) |
 | Prefix fungsi server-only | `APIS_` — hanya boleh dipanggil dari SE_, ACT_, SFN_ |
 | Prefix fungsi client-accessible | `APIC_` — boleh dipanggil dari CE_ via TanStack Query |
+| Prefix endpoint registry | `EP_` — objek path constants, import dari file endpoint feature |
 | Request interface | `IRq_[Name]` — payload yang dikirim ke API |
 | Response interface | `IRs_[Name]` — response yang diterima dari API |
 | Murni fetch | Tidak ada business logic, tidak ada redirect, tidak ada Zod validation |

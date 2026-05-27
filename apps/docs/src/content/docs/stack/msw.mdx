@@ -1,0 +1,201 @@
+---
+title: MSW (Mock Service Worker)
+description: Panduan setup dan penggunaan MSW dalam konvensi Next.js Clean Architecture — API mocking untuk development paralel dan testing yang terisolasi dari backend.
+---
+
+## Tujuan dalam Konvensi Ini
+
+MSW digunakan untuk **mengintercepti HTTP request di network layer** dan mengembalikan response dummy sesuai API contract — tanpa mengubah kode produksi sama sekali. Ini memungkinkan frontend developer bekerja paralel dengan backend developer selama API contract sudah disepakati.
+
+Dalam konvensi ini, MSW terintegrasi langsung dengan layer `api/` melalui dua komponen:
+
+- **`EP_` (Endpoint Registry)** — konstanta path API yang dipakai bersama oleh fungsi fetch (`APIS_`/`APIC_`) dan mock handler
+- **`[resource].mock-handler.ts`** — handler MSW yang co-located dengan file API-nya
+
+---
+
+## Setup
+
+```bash
+npm install msw --save-dev
+```
+
+Setelah instalasi, buat Service Worker file untuk browser:
+
+```bash
+npx msw init public/ --save
+```
+
+### File Wiring di `src/mocks/`
+
+Folder `src/mocks/` hanya berisi setup dan pengumpulan handler — **bukan** tempat mendefinisikan handler.
+
+```ts
+// src/mocks/browser.ts
+// Setup untuk development di browser (Next.js client)
+import { setupWorker } from "msw/browser"
+import { handlers } from "."
+
+export const worker = setupWorker(...handlers)
+```
+
+```ts
+// src/mocks/node.ts
+// Setup untuk testing (Vitest / Jest)
+import { setupServer } from "msw/node"
+import { handlers } from "."
+
+export const server = setupServer(...handlers)
+```
+
+```ts
+// src/mocks/index.ts
+// Kumpulkan semua handler dari seluruh feature
+// Import handler baru di sini setiap kali menambah mock
+
+import { userListHandler, userCreateHandler } from "@/api/user-management/users-list.mock-handler"
+
+export const handlers = [
+    userListHandler,
+    userCreateHandler,
+    // tambah handler baru di sini
+]
+
+export async function initMocks() {
+    if (typeof window === "undefined") return
+    const { worker } = await import("./browser")
+    return worker.start({ onUnhandledRequest: "bypass" })
+//                                            ↑ request tanpa handler tetap diteruskan ke server
+}
+```
+
+### Aktivasi di Development
+
+Tambahkan di root layout — **hanya aktif jika env variable di-set**:
+
+```ts
+// app/layout.tsx (atau app/[locale]/layout.tsx)
+
+if (process.env.NEXT_PUBLIC_API_MOCKING === "enabled") {
+    const { initMocks } = await import("@/mocks")
+    await initMocks()
+}
+```
+
+Buat file `.env.local` dan tambahkan:
+
+```
+NEXT_PUBLIC_API_MOCKING=enabled
+```
+
+> Pastikan `.env.local` ada di `.gitignore`. Jangan commit flag ini ke repository.
+
+### Aktivasi di Testing
+
+Tambahkan di test setup file (misal `vitest.setup.ts`):
+
+```ts
+// vitest.setup.ts
+import { server } from "@/mocks/node"
+
+beforeAll(() => server.listen())
+afterEach(() => server.resetHandlers())
+//                ↑ Reset setelah setiap test — hindari handler bocor ke test lain
+afterAll(() => server.close())
+```
+
+---
+
+## Pola Penggunaan
+
+### Endpoint Registry — `EP_`
+
+Setiap feature yang memiliki API mendefinisikan path-nya di file `[feature].endpoint.ts`:
+
+```ts
+// api/user-management/user-management.endpoint.ts
+
+export const EP_UserManagement = {
+    list: "/api/user-management/users",
+    detail: (id: string) => `/api/user-management/users/${id}`,
+    create: "/api/user-management/users",
+    delete: (id: string) => `/api/user-management/users/${id}`,
+}
+```
+
+`EP_` adalah satu-satunya source of truth untuk path API di feature tersebut. Fungsi fetch dan mock handler keduanya import dari sini.
+
+### Mock Handler — `[resource].mock-handler.ts`
+
+Handler didefinisikan di file terpisah, co-located dengan file API-nya:
+
+```ts
+// api/user-management/users-list.mock-handler.ts
+
+import { http, HttpResponse } from "msw"
+import { EP_UserManagement } from "./user-management.endpoint"
+import type { IRs_UserList } from "./users.type"
+
+export const userListHandler = http.get(EP_UserManagement.list, () => {
+    return HttpResponse.json<IRs_UserList>({
+        items: [
+            { id: "1", name: "Andikha", email: "andikha@example.com", role: "admin" },
+            { id: "2", name: "Budi", email: "budi@example.com", role: "viewer" },
+        ],
+        total: 2,
+    })
+})
+
+export const userCreateHandler = http.post(EP_UserManagement.create, async ({ request }) => {
+    const body = await request.json() as { name: string; email: string; role: string }
+    return HttpResponse.json({
+        ok: true,
+        data: { id: crypto.randomUUID(), ...body },
+        message: "User berhasil dibuat",
+    }, { status: 201 })
+})
+```
+
+### Override Handler per Test
+
+Untuk mensimulasikan error atau kondisi khusus di test tertentu:
+
+```ts
+// app/user-management/$test/user-management.integration.test.ts
+import { server } from "@/mocks/node"
+import { http, HttpResponse } from "msw"
+import { EP_UserManagement } from "@/api/user-management/user-management.endpoint"
+
+test("menampilkan pesan error saat API gagal", async () => {
+    server.use(
+        http.get(EP_UserManagement.list, () => {
+            return HttpResponse.json(
+                { message: "Internal Server Error" },
+                { status: 500 }
+            )
+        })
+    )
+
+    // ... render dan assert error state
+})
+```
+
+---
+
+## Aturan Konvensi
+
+- `EP_` adalah satu-satunya tempat mendefinisikan path API — tidak ada string path di `APIS_`, `APIC_`, maupun handler
+- `[resource].mock-handler.ts` selalu import path dari `[feature].endpoint.ts` — tidak pernah hardcode
+- Response mock **harus** sesuai dengan shape `IRs_` yang sudah didefinisikan — bukan karangan bebas
+- `src/mocks/` hanya boleh berisi wiring (setup + import handler) — definisi handler tetap di `api/[feature]/`
+- MSW **tidak pernah aktif di production** — selalu guard dengan `process.env.NEXT_PUBLIC_API_MOCKING`
+- Setelah backend API siap, hapus file `mock-handler` terkait dan bersihkan import di `src/mocks/index.ts`
+
+---
+
+## Referensi
+
+- [MSW Documentation](https://mswjs.io)
+- [Pattern I — API Mocking with MSW](/patterns/api-mocking)
+- [API Layer — EP_ dan mock-handler](/structure/api)
+- [Symbol Naming — EP_ prefix](/naming/symbol)

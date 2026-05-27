@@ -27,6 +27,7 @@ Setiap simbol yang diekspor dari file memiliki prefix yang menunjukkan tipenya s
 | `E_` | Enum TypeScript | file `.ts` manapun | `E_UserStatus` |
 | `QK_` | Query Key TanStack Query | `[domain].register.ts` | `QK_UserList` |
 | `ROUTE_` | Konstanta path URL | `routes.register.ts` | `ROUTE_LOGIN` |
+| `EP_` | Endpoint Path Registry | `[feature].endpoint.ts` | `EP_User`, `EP_UserManagement` |
 
 ## Penjelasan per Prefix
 
@@ -323,6 +324,35 @@ page.tsx
                     ├── APIS_Login(parsed.data)         (call backend)
                     └── SFN_SaveSession(token)          (simpan session)
 ```
+
+### `EP_` — Endpoint Path Registry
+
+Objek konstanta yang menyimpan semua path API untuk satu feature. Dipakai bersama oleh fungsi fetch (`APIS_`/`APIC_`) dan mock handler MSW — memastikan tidak ada duplikasi string path.
+
+```ts
+// api/user-management/user-management.endpoint.ts
+export const EP_UserManagement = {
+    list: "/api/user-management/users",
+    detail: (id: string) => `/api/user-management/users/${id}`,
+//          ↑ dynamic path via fungsi — tidak ada string interpolation tersebar
+    create: "/api/user-management/users",
+    delete: (id: string) => `/api/user-management/users/${id}`,
+}
+```
+
+Digunakan di:
+
+```ts
+// api/user-management/users.ts — fungsi fetch
+import { EP_UserManagement } from "./user-management.endpoint"
+const res = await fetch(EP_UserManagement.list)
+
+// api/user-management/users-list.mock-handler.ts — MSW handler
+import { EP_UserManagement } from "./user-management.endpoint"
+http.get(EP_UserManagement.list, () => { ... })
+```
+
+---
 
 ## Kapan Tidak Pakai Prefix
 

@@ -23,6 +23,7 @@ Setiap pattern mendefinisikan satu alur data yang spesifik. Untuk decision guide
 | **F** | shadcn/ui Extension | Membuat UI component yang menggunakan shadcn sebagai base |
 | **G** | Library Adapter | Integrasi ke library eksternal yang bisa diganti (Redis, S3, email, dll.) |
 | **H** | i18n dengan next-intl | Semua teks yang tampil ke user — label, pesan error, placeholder |
+| **I** | API Mocking (MSW) | API contract sudah disepakati tapi backend belum siap, atau butuh isolasi di testing |
 
 ---
 
@@ -113,6 +114,18 @@ messages/[locale].json (namespace per feature)
 ```
 
 Tidak ada folder `$lang/` di dalam feature. Semua string ada di `messages/`.
+
+---
+
+### Pattern I — API Mocking (MSW)
+
+```
+EP_[Feature] (path constants)
+→ APIC_/APIS_ (production fetch) + mock-handler.ts (MSW)
+→ aktif via env flag (dev) atau setupServer (testing)
+```
+
+`EP_` adalah single source of truth untuk path API. Fungsi fetch dan mock handler import dari `EP_` yang sama — tidak ada duplikasi path.
 
 ---
 

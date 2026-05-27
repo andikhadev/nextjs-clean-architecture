@@ -127,6 +127,24 @@ Pattern ini **opsional** — hanya gunakan jika project membutuhkan multi-bahasa
 
 ---
 
+## API Mocking
+
+### Backend belum siap tapi API contract sudah disepakati, atau butuh isolasi frontend dari backend saat testing?
+
+Gunakan [Pattern I — API Mocking (MSW)](/patterns/api-mocking).
+
+```
+EP_[Feature] (path constants)
+→ APIC_/APIS_ (fetch nyata) + mock-handler.ts (MSW intercept)
+→ aktif via NEXT_PUBLIC_API_MOCKING=enabled (dev) atau setupServer (testing)
+```
+
+Cocok untuk: sprint paralel frontend-backend, integration test yang tidak bergantung backend, simulasi error response.
+
+> **Bersifat sementara** — hapus mock handler setelah integrasi backend nyata selesai.
+
+---
+
 ## Kombinasi Pattern
 
 Pattern-pattern di atas bisa dikombinasikan dalam satu feature. Contoh halaman **User Management dengan search dan modal**:

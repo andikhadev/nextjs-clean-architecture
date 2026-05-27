@@ -25,6 +25,7 @@ dan di-bookmark. State modal (buka/tutup) disimpan di Zustand.
 | [Pattern D — URL Search Params](/patterns/url-params) | `CE_SearchBar` + `CE_Pagination` — search dan page di URL via nuqs |
 | [Pattern E — Zustand](/patterns/zustand) | `useUserManagementStore` — state modal dan selected user |
 | [Pattern H — i18n](/patterns/i18n) | Label tabel, placeholder, pesan error via namespace `"UserManagement"` |
+| [Pattern I — API Mocking (MSW)](/patterns/api-mocking) | `EP_UserManagement` sebagai path registry; `users-list.mock-handler.ts` untuk mock GET dan POST |
 
 ---
 
@@ -46,8 +47,16 @@ app/user-management/
     └── ui.store.ts                  useUserManagementStore
 
 api/user-management/
+├── user-management.endpoint.ts      EP_UserManagement — path constants
 ├── users.ts                         APIS_GetUsers, APIS_CreateUser
-└── users.type.ts                    IRq_CreateUser, IRq_GetUsers, IRs_UserList
+├── users.type.ts                    IRq_CreateUser, IRq_GetUsers, IRs_UserList
+├── users-list.mock-handler.ts       mock GET /api/user-management/users
+└── users-create.mock-handler.ts     mock POST /api/user-management/users
+
+src/mocks/
+├── browser.ts                       setupWorker — aktivasi di Next.js client
+├── node.ts                          setupServer — aktivasi di testing
+└── index.ts                         kumpulkan semua handler + initMocks()
 
 reg/
 └── query-keys.register.ts           QK_UserList
@@ -482,6 +491,93 @@ export const useUserManagementStore = create<I_UserManagementStore>((set) => ({
 
 ---
 
+## Pattern I — API Mocking (MSW)
+
+> `EP_UserManagement` menjadi single source of truth untuk semua path API feature ini.
+> Fungsi fetch (`APIS_`) dan mock handler keduanya import dari `EP_` yang sama —
+> tidak ada duplikasi path yang bisa menyebabkan ketidaksesuaian.
+
+```ts
+// api/user-management/user-management.endpoint.ts
+
+export const EP_UserManagement = {
+//             ↑ EP_ prefix — path registry untuk feature user-management
+    list: "/api/user-management/users",
+    detail: (id: string) => `/api/user-management/users/${id}`,
+    create: "/api/user-management/users",
+    delete: (id: string) => `/api/user-management/users/${id}`,
+}
+```
+
+```ts
+// api/user-management/users.ts (update — gunakan EP_ bukan string literal)
+
+import { EP_UserManagement } from "./user-management.endpoint"
+//         ↑ import path dari EP_ — tidak hardcode "/api/user-management/users"
+
+export async function APIS_GetUsers(params: IRq_GetUsers): Promise<IRs_UserList> {
+    const qs = new URLSearchParams({
+        search: params.search ?? "",
+        page: String(params.page ?? 1),
+    })
+    const res = await fetch(`${EP_UserManagement.list}?${qs}`)
+    return res.json()
+}
+```
+
+```ts
+// api/user-management/users-list.mock-handler.ts
+
+import { http, HttpResponse } from "msw"
+import { EP_UserManagement } from "./user-management.endpoint"
+//         ↑ path dari EP_ yang sama — konsisten dengan APIS_GetUsers
+import type { IRs_UserList } from "./users.type"
+
+export const userListHandler = http.get(EP_UserManagement.list, () => {
+    return HttpResponse.json<IRs_UserList>({
+//                           ↑ typed dengan IRs_ — shape identik dengan response nyata
+        items: [
+            { id: "1", name: "Andikha", email: "andikha@example.com", role: "admin" },
+            { id: "2", name: "Budi", email: "budi@example.com", role: "viewer" },
+        ],
+        total: 2,
+    })
+})
+
+export const userCreateHandler = http.post(EP_UserManagement.create, async ({ request }) => {
+    const body = await request.json() as { name: string; email: string; role: string }
+    return HttpResponse.json({
+        ok: true,
+        data: { id: crypto.randomUUID(), ...body },
+        message: "User berhasil dibuat",
+    }, { status: 201 })
+})
+```
+
+```ts
+// src/mocks/index.ts
+
+import { userListHandler, userCreateHandler } from "@/api/user-management/users-list.mock-handler"
+
+export const handlers = [userListHandler, userCreateHandler]
+
+export async function initMocks() {
+    if (typeof window === "undefined") return
+    const { worker } = await import("./browser")
+    return worker.start({ onUnhandledRequest: "bypass" })
+}
+```
+
+```ts
+// app/layout.tsx — aktifkan MSW hanya saat development dengan env flag
+if (process.env.NEXT_PUBLIC_API_MOCKING === "enabled") {
+    const { initMocks } = await import("@/mocks")
+    await initMocks()
+}
+```
+
+---
+
 ## Alur Lengkap
 
 ```mermaid
@@ -522,6 +618,8 @@ flowchart TD
 | `IRq_CreateUser`, `IRs_UserList` | `IRq_` / `IRs_` prefix | Interface request/response API |
 | `useUserManagementStore` | `useXxxStore` pattern | Zustand store — scoped ke feature |
 | `I_UserManagementStore`, `I_Props` | `I_` prefix | TypeScript interface |
+| `EP_UserManagement` | `EP_` prefix | Endpoint path registry — dipakai oleh `APIS_` dan mock handler |
+| `users-list.mock-handler.ts` | `[resource].mock-handler.ts` | MSW handler co-located dengan API file |
 | `useForm`, `form.Field`, `form.Subscribe` | TanStack Form | Form state di client — bukan `useActionState` |
 | `useQueryState`, `useQueryStates` | nuqs | URL Search Params — bukan `useSearchParams` + `router.replace` manual |
 | `action.create.ts` | `action.[sub].ts` | File naming Server Action |

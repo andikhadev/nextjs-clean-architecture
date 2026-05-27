@@ -23,6 +23,8 @@ Tabel berikut adalah referensi lengkap semua tipe file dalam proyek:
 | API Function (server-only) | `[resource].ts` | `login.ts` | `APIS_` | `api/[feature]/` |
 | API Function (client-accessible) | `[resource].ts` | `list.ts` | `APIC_` | `api/[feature]/` |
 | API Types | `[resource].type.ts` | `login.type.ts` | `IRq_`, `IRs_` | `api/[feature]/` |
+| Endpoint Path Registry | `[feature].endpoint.ts` | `user.endpoint.ts` | `EP_` | `api/[feature]/` |
+| MSW Mock Handler | `[resource].mock-handler.ts` | `users-list.mock-handler.ts` | — | `api/[feature]/` |
 | Registry | `[domain].register.ts` | `routes.register.ts` | `ROUTE_`, `QK_` | `reg/` |
 | Lib Adapter | `[library].ts` + `index.ts` | `ioredis.ts` di `lib/cache/` | — | `lib/[domain]/` |
 
