@@ -1,6 +1,7 @@
 # 05 — AI Workflow
 
-**Status:** 🔲 Belum dimulai
+**Status:** 🔄 In Progress
+**Design Spec:** `.planning/specs/2026-05-29-ai-workflow-design.md`
 **Tujuan:** Membuat artefak yang langsung mempercepat workflow tim dengan AI —
 CLAUDE.md template siap pakai, local commands, dan SKILLS.md sebagai index skills.
 Bergantung pada: Step 01 (spec selesai) + Step 04 (llms.txt live).
