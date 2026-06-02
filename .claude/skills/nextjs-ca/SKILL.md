@@ -23,6 +23,18 @@ Baca reference files berikut sebelum merespons:
 - `references/key-rules.md` — rules wajib dan anti-patterns
 - `references/stack-guide.md` — stack yang digunakan dan kapan pakai apa
 
+Detail implementasi per stack (baca sesuai stack yang relevan dengan task):
+
+- `references/stack/msw.md` — env var, struktur mocks/, naming handler, setup dev + test
+- `references/stack/http-adapter.md` — lib/http/ structure, 3 instances, factory pattern
+- `references/stack/tanstack-query.md` — QK_ registry, useQuery, useMutation, hydration pattern
+- `references/stack/tanstack-form.md` — useForm, field binding, validators, submit ke ACT_
+- `references/stack/zustand.md` — store pattern, interface, selector, scope rules
+- `references/stack/nuqs.md` — useQueryState, parsers, useQueryStates, NuqsAdapter
+- `references/stack/next-intl.md` — namespace, useTranslations, getTranslations, messages/ structure
+- `references/stack/zod.md` — ZS_ prefix, safeParse, flatten, shared schema pattern
+- `references/stack/shadcn.md` — kapan buat wrapper CE_, komposisi, lokasi wrapper
+
 ## Precision Rule (selalu berlaku)
 
 1. Hanya generate apa yang diminta atau dikonfirmasi developer
